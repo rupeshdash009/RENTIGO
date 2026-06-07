@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { Bike, CalendarClock, Car, IndianRupee, PlusCircle } from "lucide-react";
+import {
+  Bike,
+  CalendarClock,
+  Car,
+  IndianRupee,
+  PlusCircle,
+} from "lucide-react";
 import API from "../api/axios";
 import StatCard from "../components/StatCard";
 
@@ -105,8 +111,30 @@ function OwnerDashboard() {
     }
   };
 
+  const updateStatusHandler = async (vehicleId, status) => {
+    try {
+      await API.put(`/vehicles/${vehicleId}/status`, { status });
+      getOwnerVehicles();
+    } catch (error) {
+      alert(error.response?.data?.message || "Status update failed");
+    }
+  };
+
+  const deleteVehicleHandler = async (vehicleId) => {
+    const confirmDelete = window.confirm("Delete this vehicle?");
+    if (!confirmDelete) return;
+    try {
+      await API.delete(`/vehicles/${vehicleId}`);
+      getOwnerVehicles();
+    } catch (error) {
+      alert(error.response?.data?.message || "Delete failed");
+    }
+  };
+
   const pendingBookings = bookings.filter((b) => b.status === "pending").length;
-  const approvedBookings = bookings.filter((b) => b.status === "approved").length;
+  const approvedBookings = bookings.filter(
+    (b) => b.status === "approved",
+  ).length;
 
   return (
     <section className="mx-auto max-w-7xl pt-8">
@@ -118,7 +146,11 @@ function OwnerDashboard() {
       </div>
 
       <div className="mb-8 grid gap-5 md:grid-cols-4">
-        <StatCard title="Total Vehicles" value={vehicles.length} icon={<Car />} />
+        <StatCard
+          title="Total Vehicles"
+          value={vehicles.length}
+          icon={<Car />}
+        />
         <StatCard
           title="Pending Requests"
           value={pendingBookings}
@@ -278,21 +310,44 @@ function OwnerDashboard() {
                 {vehicles.map((vehicle) => (
                   <div
                     key={vehicle._id}
-                    className="rounded-3xl bg-white p-4 shadow-sm md:flex md:items-center md:justify-between"
+                    className="rounded-3xl bg-white p-4 shadow-sm"
                   >
-                    <div>
-                      <h3 className="font-black text-slate-950">
-                        {vehicle.vehicleName}
-                      </h3>
-                      <p className="text-sm text-slate-500">
-                        {vehicle.vehicleNumber} • {vehicle.type} • ₹
-                        {vehicle.priceDaily}/day
-                      </p>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="font-black text-slate-950">
+                          {vehicle.vehicleName}
+                        </h3>
+                        <p className="text-sm text-slate-500">
+                          {vehicle.vehicleNumber} • {vehicle.type} • ₹
+                          {vehicle.priceDaily}/day
+                        </p>
+                      </div>
+
+                      <span className="badge mt-1 inline-block bg-emerald-50 text-emerald-700 shrink-0">
+                        {vehicle.status}
+                      </span>
                     </div>
 
-                    <span className="badge mt-3 inline-block bg-emerald-50 text-emerald-700 md:mt-0">
-                      {vehicle.status}
-                    </span>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <select
+                        className="input-style py-1.5 text-sm"
+                        value={vehicle.status}
+                        onChange={(e) =>
+                          updateStatusHandler(vehicle._id, e.target.value)
+                        }
+                      >
+                        <option value="available">Available</option>
+                        <option value="rented">Rented</option>
+                        <option value="maintenance">Maintenance</option>
+                      </select>
+
+                      <button
+                        className="rounded-2xl bg-red-600 px-4 py-1.5 text-sm font-bold text-white transition hover:bg-red-700"
+                        onClick={() => deleteVehicleHandler(vehicle._id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -309,7 +364,10 @@ function OwnerDashboard() {
             ) : (
               <div className="space-y-4">
                 {bookings.map((booking) => (
-                  <div key={booking._id} className="rounded-3xl bg-white p-5 shadow-sm">
+                  <div
+                    key={booking._id}
+                    className="rounded-3xl bg-white p-5 shadow-sm"
+                  >
                     <div className="flex flex-col justify-between gap-4 md:flex-row">
                       <div>
                         <h3 className="text-lg font-black text-slate-950">
@@ -332,8 +390,8 @@ function OwnerDashboard() {
                           booking.status === "approved"
                             ? "bg-emerald-50 text-emerald-700"
                             : booking.status === "rejected"
-                            ? "bg-red-50 text-red-700"
-                            : "bg-yellow-50 text-yellow-700"
+                              ? "bg-red-50 text-red-700"
+                              : "bg-yellow-50 text-yellow-700"
                         }`}
                       >
                         {booking.status}

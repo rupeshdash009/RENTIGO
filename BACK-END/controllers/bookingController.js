@@ -1,5 +1,6 @@
-const Booking = require("../models/booking");
-const Vehicle = require("../models/vehicle");
+const Booking = require("../models/Booking");
+const Vehicle = require("../models/Vehicle");
+const MaintenanceBlock = require("../models/MaintenanceBlock");
 
 const calculateTotalAmount = (vehicle, rentalPlan, startDate, endDate) => {
   const start = new Date(startDate);
@@ -12,44 +13,30 @@ const calculateTotalAmount = (vehicle, rentalPlan, startDate, endDate) => {
     throw new Error("End date must be after start date");
   }
 
-  if (rentalPlan === "daily") {
-    return days * vehicle.priceDaily;
-  }
-
-  if (rentalPlan === "weekly") {
-    const weeks = Math.ceil(days / 7);
-    return weeks * vehicle.priceWeekly;
-  }
-
-  if (rentalPlan === "monthly") {
-    const months = Math.ceil(days / 30);
-    return months * vehicle.priceMonthly;
-  }
+  if (rentalPlan === "daily") return days * vehicle.priceDaily;
+  if (rentalPlan === "weekly") return Math.ceil(days / 7) * vehicle.priceWeekly;
+  if (rentalPlan === "monthly")
+    return Math.ceil(days / 30) * vehicle.priceMonthly;
 
   throw new Error("Invalid rental plan");
 };
 
-const checkBookingConflict = async (
-  vehicleId,
-  startDate,
-  endDate,
-  statuses,
-  excludeBookingId = null
-) => {
-  const query = {
+const checkBookingConflict = async (vehicleId, startDate, endDate) => {
+  return await Booking.findOne({
     vehicle: vehicleId,
-    status: { $in: statuses },
+    status: { $in: ["pending", "approved"] },
     startDate: { $lte: new Date(endDate) },
     endDate: { $gte: new Date(startDate) },
-  };
+  });
+};
 
-  if (excludeBookingId) {
-    query._id = { $ne: excludeBookingId };
-  }
-
-  const existingBooking = await Booking.findOne(query);
-
-  return existingBooking;
+const checkMaintenanceConflict = async (vehicleId, startDate, endDate) => {
+  return await MaintenanceBlock.findOne({
+    vehicle: vehicleId,
+    status: "active",
+    startDate: { $lte: new Date(endDate) },
+    endDate: { $gte: new Date(startDate) },
+  });
 };
 
 const createBooking = async (req, res) => {
@@ -70,22 +57,39 @@ const createBooking = async (req, res) => {
       });
     }
 
-    if (vehicle.status !== "available") {
+    if (vehicle.approvalStatus !== "approved") {
       return res.status(400).json({
-        message: "Vehicle is not available",
+        message: "Vehicle is not approved by admin yet",
       });
     }
 
-    const conflict = await checkBookingConflict(
+    if (vehicle.status !== "available") {
+      return res.status(400).json({
+        message: "Vehicle is not available right now",
+      });
+    }
+
+    const bookingConflict = await checkBookingConflict(
       vehicleId,
       startDate,
       endDate,
-      ["pending", "approved"]
     );
 
-    if (conflict) {
+    if (bookingConflict) {
       return res.status(409).json({
         message: "Vehicle already booked or requested for selected dates",
+      });
+    }
+
+    const maintenanceConflict = await checkMaintenanceConflict(
+      vehicleId,
+      startDate,
+      endDate,
+    );
+
+    if (maintenanceConflict) {
+      return res.status(409).json({
+        message: "Vehicle is blocked for maintenance during selected dates",
       });
     }
 
@@ -93,7 +97,7 @@ const createBooking = async (req, res) => {
       vehicle,
       rentalPlan,
       startDate,
-      endDate
+      endDate,
     );
 
     const booking = await Booking.create({
@@ -112,6 +116,7 @@ const createBooking = async (req, res) => {
       booking,
     });
   } catch (error) {
+    console.error("CREATE BOOKING ERROR:", error);
     res.status(500).json({
       message: "Booking creation failed",
       error: error.message,
@@ -174,15 +179,15 @@ const approveBooking = async (req, res) => {
       });
     }
 
-    const conflict = await checkBookingConflict(
-      booking.vehicle,
-      booking.startDate,
-      booking.endDate,
-      ["approved"],
-      booking._id
-    );
+    const existingApprovedBooking = await Booking.findOne({
+      _id: { $ne: booking._id },
+      vehicle: booking.vehicle,
+      status: "approved",
+      startDate: { $lte: booking.endDate },
+      endDate: { $gte: booking.startDate },
+    });
 
-    if (conflict) {
+    if (existingApprovedBooking) {
       return res.status(409).json({
         message: "Another booking is already approved for these dates",
       });
@@ -237,10 +242,51 @@ const rejectBooking = async (req, res) => {
   }
 };
 
+const cancelBooking = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+
+    if (!booking) {
+      return res.status(404).json({
+        message: "Booking not found",
+      });
+    }
+
+    if (
+      booking.user.toString() !== req.user._id.toString() &&
+      req.user.role !== "admin"
+    ) {
+      return res.status(403).json({
+        message: "Not allowed to cancel this booking",
+      });
+    }
+
+    if (booking.status === "approved") {
+      return res.status(400).json({
+        message: "Approved booking cannot be cancelled from here",
+      });
+    }
+
+    booking.status = "cancelled";
+    await booking.save();
+
+    res.status(200).json({
+      message: "Booking cancelled successfully",
+      booking,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Booking cancellation failed",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createBooking,
   getMyBookings,
   getOwnerBookings,
   approveBooking,
   rejectBooking,
+  cancelBooking,
 };

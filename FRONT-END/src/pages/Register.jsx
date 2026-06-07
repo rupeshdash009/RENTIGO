@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { UserPlus, Building2 } from "lucide-react";
 import API from "../api/axios";
 
 function Register({ roleType }) {
   const navigate = useNavigate();
-
   const isOwner = roleType === "owner";
 
   const [formData, setFormData] = useState({
@@ -15,6 +14,22 @@ function Register({ roleType }) {
   });
 
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem("user");
+
+    if (savedUser) {
+      const user = JSON.parse(savedUser);
+
+      if (user.role === "customer") {
+        navigate("/vehicles");
+      } else if (user.role === "owner") {
+        navigate("/owner-dashboard");
+      } else if (user.role === "admin") {
+        navigate("/admin-dashboard");
+      }
+    }
+  }, [navigate]);
 
   const changeHandler = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -61,7 +76,7 @@ function Register({ roleType }) {
 
         <p className="mt-2 text-slate-500">
           {isOwner
-            ? "Create rental owner account to add vehicles and manage bookings."
+            ? "Create owner account to manage vehicles and bookings."
             : "Create customer account to browse and book vehicles."}
         </p>
 
@@ -104,42 +119,21 @@ function Register({ roleType }) {
           </button>
         </form>
 
-        <div className="mt-6 space-y-2 text-center text-sm text-slate-500">
+        <div className="mt-6 text-center text-sm text-slate-500">
           {isOwner ? (
-            <>
-              <p>
-                Already owner?{" "}
-                <Link to="/owner-login" className="font-bold text-blue-700">
-                  Owner Login
-                </Link>
-              </p>
-
-              <p>
-                Want to book vehicles?{" "}
-                <Link
-                  to="/customer-register"
-                  className="font-bold text-blue-700"
-                >
-                  Customer Register
-                </Link>
-              </p>
-            </>
+            <p>
+              Already owner?{" "}
+              <Link to="/staff" className="font-bold text-blue-700">
+                Go to Staff Portal
+              </Link>
+            </p>
           ) : (
-            <>
-              <p>
-                Already customer?{" "}
-                <Link to="/customer-login" className="font-bold text-blue-700">
-                  Customer Login
-                </Link>
-              </p>
-
-              <p>
-                Are you rental owner?{" "}
-                <Link to="/owner-register" className="font-bold text-blue-700">
-                  Owner Register
-                </Link>
-              </p>
-            </>
+            <p>
+              Already customer?{" "}
+              <Link to="/customer-login" className="font-bold text-blue-700">
+                Customer Login
+              </Link>
+            </p>
           )}
         </div>
       </div>

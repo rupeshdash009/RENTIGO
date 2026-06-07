@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
   Bike,
   CalendarDays,
@@ -8,6 +8,7 @@ import {
   IndianRupee,
   MapPin,
   Settings,
+  ArrowLeft,
 } from "lucide-react";
 import API from "../api/axios";
 
@@ -15,6 +16,7 @@ function VehicleDetails() {
   const { id } = useParams();
 
   const [vehicle, setVehicle] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -26,19 +28,30 @@ function VehicleDetails() {
 
   const getVehicle = async () => {
     try {
+      setLoading(true);
+      setError("");
+
       const res = await API.get(`/vehicles/${id}`);
       setVehicle(res.data);
     } catch (error) {
-      setError(error.response?.data?.message || "Vehicle load failed");
+      console.log("VEHICLE DETAILS ERROR:", error);
+      setError(error.response?.data?.message || "Vehicle not found");
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    getVehicle();
+    if (id) {
+      getVehicle();
+    }
   }, [id]);
 
   const changeHandler = (e) => {
-    setBookingData({ ...bookingData, [e.target.name]: e.target.value });
+    setBookingData({
+      ...bookingData,
+      [e.target.name]: e.target.value,
+    });
   };
 
   const bookingHandler = async (e) => {
@@ -46,34 +59,89 @@ function VehicleDetails() {
     setMessage("");
     setError("");
 
+    const token = localStorage.getItem("token");
+    const user = JSON.parse(localStorage.getItem("user"));
+
+    if (!token || !user) {
+      setError("Please login as customer before booking.");
+      return;
+    }
+
+    if (user.role !== "customer") {
+      setError("Only customers can book vehicles.");
+      return;
+    }
+
+    if (!bookingData.startDate || !bookingData.endDate) {
+      setError("Please select start date and end date.");
+      return;
+    }
+
     try {
       const res = await API.post("/bookings", {
         vehicleId: id,
         ...bookingData,
       });
 
-      setMessage(res.data.message);
+      setMessage(res.data.message || "Booking request sent successfully");
     } catch (error) {
+      console.log("BOOKING ERROR:", error);
       setError(error.response?.data?.message || "Booking failed");
     }
   };
 
-  if (!vehicle) {
+  if (loading) {
     return (
-      <div className="mx-auto max-w-7xl pt-10">
+      <section className="mx-auto max-w-7xl pt-8">
         <div className="glass-soft rounded-3xl p-8 text-center text-slate-600">
-          Loading vehicle...
+          Loading vehicle details...
         </div>
-      </div>
+      </section>
+    );
+  }
+
+  if (error && !vehicle) {
+    return (
+      <section className="mx-auto max-w-7xl pt-8">
+        <div className="glass rounded-[2rem] p-8 text-center">
+          <h2 className="text-2xl font-black text-slate-950">
+            Vehicle not found
+          </h2>
+
+          <p className="mt-3 text-slate-500">{error}</p>
+
+          <Link
+            to="/vehicles"
+            className="btn-primary mt-6 inline-flex items-center gap-2"
+          >
+            <ArrowLeft size={18} />
+            Back to Vehicles
+          </Link>
+        </div>
+      </section>
     );
   }
 
   return (
     <section className="mx-auto max-w-7xl pt-8">
+      <Link
+        to="/vehicles"
+        className="mb-5 inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-slate-950"
+      >
+        <ArrowLeft size={18} />
+        Back to Vehicles
+      </Link>
+
       <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="glass rounded-[2rem] p-6">
-          <div className="mb-6 flex h-80 items-center justify-center rounded-[2rem] bg-gradient-to-br from-blue-50 to-purple-50">
-            {vehicle.type === "two-wheeler" ? (
+          <div className="mb-6 flex h-80 items-center justify-center overflow-hidden rounded-[2rem] bg-gradient-to-br from-blue-50 to-purple-50">
+            {vehicle?.images?.length > 0 ? (
+              <img
+                src={vehicle.images[0]}
+                alt={vehicle.vehicleName}
+                className="h-full w-full object-cover"
+              />
+            ) : vehicle?.type === "two-wheeler" ? (
               <Bike size={120} className="text-blue-600" />
             ) : (
               <Car size={120} className="text-purple-600" />
@@ -83,27 +151,33 @@ function VehicleDetails() {
           <div className="flex flex-col justify-between gap-4 md:flex-row">
             <div>
               <h1 className="text-4xl font-black text-slate-950">
-                {vehicle.vehicleName}
+                {vehicle?.vehicleName}
               </h1>
+
               <p className="mt-2 text-slate-500">
-                {vehicle.brand} {vehicle.model} • {vehicle.modelYear}
+                {vehicle?.brand} {vehicle?.model}{" "}
+                {vehicle?.modelYear ? `• ${vehicle.modelYear}` : ""}
               </p>
             </div>
 
             <span className="badge h-fit bg-emerald-50 text-emerald-700">
-              {vehicle.status}
+              {vehicle?.status || "available"}
             </span>
           </div>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            <Info icon={<MapPin />} label="Location" value={vehicle.location} />
-            <Info icon={<Fuel />} label="Fuel Type" value={vehicle.fuelType} />
+            <Info
+              icon={<MapPin />}
+              label="Location"
+              value={vehicle?.location}
+            />
+            <Info icon={<Fuel />} label="Fuel Type" value={vehicle?.fuelType} />
             <Info
               icon={<Settings />}
               label="Transmission"
-              value={vehicle.transmission}
+              value={vehicle?.transmission}
             />
-            <Info icon={<Car />} label="Vehicle Type" value={vehicle.type} />
+            <Info icon={<Car />} label="Vehicle Type" value={vehicle?.type} />
           </div>
 
           <div className="mt-8 rounded-3xl bg-white p-5 shadow-sm">
@@ -112,9 +186,9 @@ function VehicleDetails() {
             </h3>
 
             <div className="grid gap-4 sm:grid-cols-3">
-              <Price title="Daily" price={vehicle.priceDaily} />
-              <Price title="Weekly" price={vehicle.priceWeekly} />
-              <Price title="Monthly" price={vehicle.priceMonthly} />
+              <Price title="Daily" price={vehicle?.priceDaily} />
+              <Price title="Weekly" price={vehicle?.priceWeekly} />
+              <Price title="Monthly" price={vehicle?.priceMonthly} />
             </div>
           </div>
         </div>
@@ -125,6 +199,7 @@ function VehicleDetails() {
           </div>
 
           <h2 className="text-3xl font-black text-slate-950">Book Vehicle</h2>
+
           <p className="mt-2 text-slate-500">
             Select date range and rental plan. Owner will approve your request.
           </p>
@@ -146,6 +221,7 @@ function VehicleDetails() {
               <label className="mb-2 block text-sm font-medium text-slate-600">
                 Start Date
               </label>
+
               <input
                 className="input-style"
                 type="date"
@@ -159,6 +235,7 @@ function VehicleDetails() {
               <label className="mb-2 block text-sm font-medium text-slate-600">
                 End Date
               </label>
+
               <input
                 className="input-style"
                 type="date"
@@ -172,6 +249,7 @@ function VehicleDetails() {
               <label className="mb-2 block text-sm font-medium text-slate-600">
                 Rental Plan
               </label>
+
               <select
                 className="input-style"
                 name="rentalPlan"
@@ -199,7 +277,9 @@ function Info({ icon, label, value }) {
     <div className="rounded-3xl bg-white p-4 shadow-sm">
       <div className="mb-3 text-blue-600">{icon}</div>
       <p className="text-sm text-slate-500">{label}</p>
-      <p className="font-bold capitalize text-slate-950">{value}</p>
+      <p className="font-bold capitalize text-slate-950">
+        {value || "Not added"}
+      </p>
     </div>
   );
 }
@@ -208,9 +288,10 @@ function Price({ title, price }) {
   return (
     <div className="rounded-2xl bg-slate-50 p-4">
       <p className="text-sm text-slate-500">{title}</p>
+
       <p className="mt-2 flex items-center text-2xl font-black text-slate-950">
         <IndianRupee size={20} />
-        {price}
+        {price || 0}
       </p>
     </div>
   );

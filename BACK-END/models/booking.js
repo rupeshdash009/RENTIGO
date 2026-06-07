@@ -7,34 +7,28 @@ const bookingSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-
     vehicle: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Vehicle",
       required: true,
     },
-
     startDate: {
       type: Date,
       required: true,
     },
-
     endDate: {
       type: Date,
       required: true,
     },
-
     rentalPlan: {
       type: String,
       enum: ["daily", "weekly", "monthly"],
       required: true,
     },
-
     totalPrice: {
       type: Number,
       required: true,
     },
-
     status: {
       type: String,
       enum: ["pending", "confirmed", "cancelled", "completed"],
@@ -43,7 +37,8 @@ const bookingSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-module.exports = mongoose.model("Booking", bookingSchema);
+module.exports =
+  mongoose.models.booking || mongoose.model("booking", bookingSchema);

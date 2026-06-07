@@ -1,58 +1,49 @@
-const Vehicle = require("../models/vehicle");
+const mongoose = require("mongoose");
+const Vehicle = require("../models/Vehicle");
 
-// Add vehicle
-const addVehicle = async (req, res) => {
+const createVehicle = async (req, res) => {
   try {
     const {
-      name,
+      vehicleName,
+      vehicleNumber,
       brand,
       model,
-      vehicleType,
+      modelYear,
+      type,
       fuelType,
       transmission,
-      pricePerDay,
-      pricePerWeek,
-      pricePerMonth,
+      priceDaily,
+      priceWeekly,
+      priceMonthly,
       location,
-      image,
+      images,
     } = req.body;
 
-    if (
-      !name ||
-      !brand ||
-      !model ||
-      !vehicleType ||
-      !fuelType ||
-      !pricePerDay ||
-      !pricePerWeek ||
-      !pricePerMonth ||
-      !location
-    ) {
-      return res.status(400).json({
-        message: "All required fields must be provided",
-      });
-    }
-
     const vehicle = await Vehicle.create({
-      name,
+      owner: req.user._id,
+      vehicleName,
+      vehicleNumber,
       brand,
       model,
-      vehicleType,
+      modelYear,
+      type,
       fuelType,
       transmission,
-      pricePerDay,
-      pricePerWeek,
-      pricePerMonth,
+      priceDaily,
+      priceWeekly,
+      priceMonthly,
       location,
-      image,
-      owner: req.user._id,
+      images: images || [],
+      status: "available",
+      approvalStatus: "pending",
     });
 
     res.status(201).json({
-      message: "Vehicle added successfully",
+      message: "Vehicle added successfully. Waiting for admin approval.",
       vehicle,
     });
   } catch (error) {
+    console.error("CREATE VEHICLE ERROR:", error);
     res.status(500).json({
       message: "Vehicle creation failed",
       error: error.message,
@@ -60,36 +51,68 @@ const addVehicle = async (req, res) => {
   }
 };
 
-// Get all vehicles
 const getVehicles = async (req, res) => {
   try {
-    const vehicles = await Vehicle.find()
-      .populate("owner", "name email role")
+    const { type, fuelType, location, minPrice, maxPrice } = req.query;
+
+    const filter = {
+      status: "available",
+      approvalStatus: "approved",
+    };
+
+    if (type) filter.type = type;
+    if (fuelType) filter.fuelType = fuelType;
+    if (location) filter.location = { $regex: location, $options: "i" };
+
+    if (minPrice || maxPrice) {
+      filter.priceDaily = {};
+      if (minPrice) filter.priceDaily.$gte = Number(minPrice);
+      if (maxPrice) filter.priceDaily.$lte = Number(maxPrice);
+    }
+
+    const vehicles = await Vehicle.find(filter)
+      .populate("owner", "name email")
       .sort({ createdAt: -1 });
 
-    res.status(200).json({
-      message: "Vehicles fetched successfully",
-      count: vehicles.length,
-      vehicles,
-    });
+    res.status(200).json(vehicles);
   } catch (error) {
+    console.error("GET VEHICLES ERROR:", error);
     res.status(500).json({
-      message: "Vehicles fetch failed",
+      message: "Failed to fetch vehicles",
       error: error.message,
     });
   }
-  const filter = {
-    status: "available",
-    approvalStatus: "approved",
-  };
 };
 
-// Get single vehicle
+const getOwnerVehicles = async (req, res) => {
+  try {
+    const vehicles = await Vehicle.find({
+      owner: req.user._id,
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json(vehicles);
+  } catch (error) {
+    console.error("GET OWNER VEHICLES ERROR:", error);
+    res.status(500).json({
+      message: "Failed to fetch owner vehicles",
+      error: error.message,
+    });
+  }
+};
+
 const getVehicleById = async (req, res) => {
   try {
-    const vehicle = await Vehicle.findById(req.params.id).populate(
+    const vehicleId = req.params.id;
+
+    if (!mongoose.Types.ObjectId.isValid(vehicleId)) {
+      return res.status(400).json({
+        message: "Invalid vehicle ID",
+      });
+    }
+
+    const vehicle = await Vehicle.findById(vehicleId).populate(
       "owner",
-      "name email role",
+      "name email",
     );
 
     if (!vehicle) {
@@ -98,20 +121,141 @@ const getVehicleById = async (req, res) => {
       });
     }
 
+    res.status(200).json(vehicle);
+  } catch (error) {
+    console.error("GET VEHICLE BY ID ERROR:", error);
+    res.status(500).json({
+      message: "Failed to fetch vehicle",
+      error: error.message,
+    });
+  }
+};
+
+const updateVehicle = async (req, res) => {
+  try {
+    const vehicle = await Vehicle.findById(req.params.id);
+
+    if (!vehicle) {
+      return res.status(404).json({
+        message: "Vehicle not found",
+      });
+    }
+
+    if (
+      vehicle.owner.toString() !== req.user._id.toString() &&
+      req.user.role !== "admin"
+    ) {
+      return res.status(403).json({
+        message: "Not allowed to update this vehicle",
+      });
+    }
+
+    const updatedVehicle = await Vehicle.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
+
     res.status(200).json({
-      message: "Vehicle fetched successfully",
+      message: "Vehicle updated successfully",
+      vehicle: updatedVehicle,
+    });
+  } catch (error) {
+    console.error("UPDATE VEHICLE ERROR:", error);
+    res.status(500).json({
+      message: "Vehicle update failed",
+      error: error.message,
+    });
+  }
+};
+
+const updateVehicleStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    const allowedStatus = ["available", "maintenance", "inactive"];
+
+    if (!allowedStatus.includes(status)) {
+      return res.status(400).json({
+        message: "Invalid vehicle status",
+      });
+    }
+
+    const vehicle = await Vehicle.findById(req.params.id);
+
+    if (!vehicle) {
+      return res.status(404).json({
+        message: "Vehicle not found",
+      });
+    }
+
+    if (
+      vehicle.owner.toString() !== req.user._id.toString() &&
+      req.user.role !== "admin"
+    ) {
+      return res.status(403).json({
+        message: "Not allowed to update this vehicle status",
+      });
+    }
+
+    vehicle.status = status;
+    await vehicle.save();
+
+    res.status(200).json({
+      message: "Vehicle status updated successfully",
       vehicle,
     });
   } catch (error) {
+    console.error("UPDATE VEHICLE STATUS ERROR:", error);
     res.status(500).json({
-      message: "Vehicle fetch failed",
+      message: "Vehicle status update failed",
+      error: error.message,
+    });
+  }
+};
+
+const deleteVehicle = async (req, res) => {
+  try {
+    const vehicle = await Vehicle.findById(req.params.id);
+
+    if (!vehicle) {
+      return res.status(404).json({
+        message: "Vehicle not found",
+      });
+    }
+
+    if (
+      vehicle.owner.toString() !== req.user._id.toString() &&
+      req.user.role !== "admin"
+    ) {
+      return res.status(403).json({
+        message: "Not allowed to delete this vehicle",
+      });
+    }
+
+    await vehicle.deleteOne();
+
+    res.status(200).json({
+      message: "Vehicle deleted successfully",
+    });
+  } catch (error) {
+    console.error("DELETE VEHICLE ERROR:", error);
+    res.status(500).json({
+      message: "Vehicle delete failed",
       error: error.message,
     });
   }
 };
 
 module.exports = {
-  addVehicle,
+  createVehicle,
   getVehicles,
+  getOwnerVehicles,
   getVehicleById,
+  updateVehicle,
+  updateVehicleStatus,
+  deleteVehicle,
 };

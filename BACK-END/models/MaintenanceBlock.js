@@ -1,44 +1,107 @@
 const mongoose = require("mongoose");
 
-const maintenanceBlockSchema = new mongoose.Schema(
+const vehicleSchema = new mongoose.Schema(
   {
-    vehicle: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Vehicle",
-      required: true,
-    },
-
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
 
-    reason: {
+    vehicleName: {
       type: String,
       required: true,
       trim: true,
     },
 
-    startDate: {
-      type: Date,
+    vehicleNumber: {
+      type: String,
+      required: true,
+      unique: true,
+      uppercase: true,
+      trim: true,
+    },
+
+    brand: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    model: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    modelYear: {
+      type: Number,
       required: true,
     },
 
-    endDate: {
-      type: Date,
+    type: {
+      type: String,
+      enum: ["two-wheeler", "four-wheeler"],
       required: true,
+    },
+
+    fuelType: {
+      type: String,
+      enum: ["petrol", "diesel", "electric", "cng"],
+      required: true,
+    },
+
+    transmission: {
+      type: String,
+      enum: ["manual", "automatic"],
+      default: "manual",
+    },
+
+    priceDaily: {
+      type: Number,
+      required: true,
+    },
+
+    priceWeekly: {
+      type: Number,
+      required: true,
+    },
+
+    priceMonthly: {
+      type: Number,
+      required: true,
+    },
+
+    location: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    images: {
+      type: [String],
+      default: [],
     },
 
     status: {
       type: String,
-      enum: ["active", "completed", "cancelled"],
-      default: "active",
+      enum: ["available", "maintenance", "inactive"],
+      default: "available",
+    },
+
+    approvalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
+
+    rejectionReason: {
+      type: String,
+      default: "",
     },
   },
   { timestamps: true },
 );
 
 module.exports =
-  mongoose.models.MaintenanceBlock ||
-  mongoose.model("MaintenanceBlock", maintenanceBlockSchema);
+  mongoose.models.Vehicle || mongoose.model("Vehicle", vehicleSchema);

@@ -6,45 +6,38 @@ const {
   getOwnerBookings,
   approveBooking,
   rejectBooking,
+  cancelBooking,
 } = require("../controllers/bookingController");
 
 const { protect, authorize } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-router.post(
-  "/",
-  protect,
-  authorize("customer", "admin"),
-  createBooking
-);
+router.post("/", protect, authorize("customer", "admin"), createBooking);
 
 router.get(
   "/my-bookings",
   protect,
   authorize("customer", "admin"),
-  getMyBookings
+  getMyBookings,
 );
 
-router.get(
-  "/owner",
-  protect,
-  authorize("agency", "admin"),
-  getOwnerBookings
-);
+router.get("/owner", protect, authorize("owner", "admin"), getOwnerBookings);
 
 router.put(
   "/:id/approve",
   protect,
-  authorize("agency", "admin"),
-  approveBooking
+  authorize("owner", "admin"),
+  approveBooking,
 );
 
+router.put("/:id/reject", protect, authorize("owner", "admin"), rejectBooking);
+
 router.put(
-  "/:id/reject",
+  "/:id/cancel",
   protect,
-  authorize("agency", "admin"),
-  rejectBooking
+  authorize("customer", "admin"),
+  cancelBooking,
 );
 
 module.exports = router;

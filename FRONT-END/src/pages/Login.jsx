@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { LogIn, Building2 } from "lucide-react";
 import API from "../api/axios";
 
 function Login({ expectedRole }) {
   const navigate = useNavigate();
-
   const isOwner = expectedRole === "owner";
 
   const [formData, setFormData] = useState({
@@ -14,6 +13,22 @@ function Login({ expectedRole }) {
   });
 
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem("user");
+
+    if (savedUser) {
+      const user = JSON.parse(savedUser);
+
+      if (user.role === "customer") {
+        navigate("/vehicles");
+      } else if (user.role === "owner") {
+        navigate("/owner-dashboard");
+      } else if (user.role === "admin") {
+        navigate("/admin-dashboard");
+      }
+    }
+  }, [navigate]);
 
   const changeHandler = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -28,16 +43,15 @@ function Login({ expectedRole }) {
       localStorage.removeItem("user");
 
       const res = await API.post("/auth/login", formData);
-
       const loggedInUser = res.data.user;
 
       if (loggedInUser.role !== expectedRole) {
         if (loggedInUser.role === "owner") {
-          setError("This is an owner account. Please use Owner Login.");
-        } else if (loggedInUser.role === "customer") {
-          setError("This is a customer account. Please use Customer Login.");
+          setError("This is an owner account. Please login from Staff Portal.");
+        } else if (loggedInUser.role === "admin") {
+          setError("This is an admin account. Please login from Staff Portal.");
         } else {
-          setError("Invalid account role.");
+          setError("This is a customer account. Please use Customer Login.");
         }
 
         return;
@@ -71,7 +85,7 @@ function Login({ expectedRole }) {
 
         <p className="mt-2 text-slate-500">
           {isOwner
-            ? "Login as rental owner to manage vehicles and booking requests."
+            ? "Login as rental owner to manage vehicles and bookings."
             : "Login as customer to browse and book vehicles."}
         </p>
 
@@ -105,42 +119,21 @@ function Login({ expectedRole }) {
           </button>
         </form>
 
-        <div className="mt-6 space-y-2 text-center text-sm text-slate-500">
+        <div className="mt-6 text-center text-sm text-slate-500">
           {isOwner ? (
-            <>
-              <p>
-                New owner?{" "}
-                <Link to="/owner-register" className="font-bold text-blue-700">
-                  Owner Register
-                </Link>
-              </p>
-
-              <p>
-                Are you customer?{" "}
-                <Link to="/customer-login" className="font-bold text-blue-700">
-                  Customer Login
-                </Link>
-              </p>
-            </>
+            <p>
+              Need owner account?{" "}
+              <Link to="/staff" className="font-bold text-blue-700">
+                Go to Staff Portal
+              </Link>
+            </p>
           ) : (
-            <>
-              <p>
-                New customer?{" "}
-                <Link
-                  to="/customer-register"
-                  className="font-bold text-blue-700"
-                >
-                  Customer Register
-                </Link>
-              </p>
-
-              <p>
-                Are you rental owner?{" "}
-                <Link to="/owner-login" className="font-bold text-blue-700">
-                  Owner Login
-                </Link>
-              </p>
-            </>
+            <p>
+              New customer?{" "}
+              <Link to="/customer-register" className="font-bold text-blue-700">
+                Create Customer Account
+              </Link>
+            </p>
           )}
         </div>
       </div>

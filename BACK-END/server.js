@@ -7,7 +7,7 @@ const authRoutes = require("./routes/authRoutes");
 const vehicleRoutes = require("./routes/vehicleRoutes");
 const bookingRoutes = require("./routes/bookingRoutes");
 const adminRoutes = require("./routes/adminRoutes");
-
+const maintenanceRoutes = require("./routes/maintenanceRoutes");
 dotenv.config();
 connectDB();
 
@@ -30,7 +30,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/admin", adminRoutes);
-
+app.use("/api/maintenance", maintenanceRoutes);
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
