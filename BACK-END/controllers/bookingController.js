@@ -1,0 +1,246 @@
+const Booking = require("../models/booking");
+const Vehicle = require("../models/vehicle");
+
+const calculateTotalAmount = (vehicle, rentalPlan, startDate, endDate) => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  const diffTime = end.getTime() - start.getTime();
+  const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (days < 1) {
+    throw new Error("End date must be after start date");
+  }
+
+  if (rentalPlan === "daily") {
+    return days * vehicle.priceDaily;
+  }
+
+  if (rentalPlan === "weekly") {
+    const weeks = Math.ceil(days / 7);
+    return weeks * vehicle.priceWeekly;
+  }
+
+  if (rentalPlan === "monthly") {
+    const months = Math.ceil(days / 30);
+    return months * vehicle.priceMonthly;
+  }
+
+  throw new Error("Invalid rental plan");
+};
+
+const checkBookingConflict = async (
+  vehicleId,
+  startDate,
+  endDate,
+  statuses,
+  excludeBookingId = null
+) => {
+  const query = {
+    vehicle: vehicleId,
+    status: { $in: statuses },
+    startDate: { $lte: new Date(endDate) },
+    endDate: { $gte: new Date(startDate) },
+  };
+
+  if (excludeBookingId) {
+    query._id = { $ne: excludeBookingId };
+  }
+
+  const existingBooking = await Booking.findOne(query);
+
+  return existingBooking;
+};
+
+const createBooking = async (req, res) => {
+  try {
+    const { vehicleId, startDate, endDate, rentalPlan } = req.body;
+
+    if (!vehicleId || !startDate || !endDate || !rentalPlan) {
+      return res.status(400).json({
+        message: "Vehicle, start date, end date and rental plan are required",
+      });
+    }
+
+    const vehicle = await Vehicle.findById(vehicleId);
+
+    if (!vehicle) {
+      return res.status(404).json({
+        message: "Vehicle not found",
+      });
+    }
+
+    if (vehicle.status !== "available") {
+      return res.status(400).json({
+        message: "Vehicle is not available",
+      });
+    }
+
+    const conflict = await checkBookingConflict(
+      vehicleId,
+      startDate,
+      endDate,
+      ["pending", "approved"]
+    );
+
+    if (conflict) {
+      return res.status(409).json({
+        message: "Vehicle already booked or requested for selected dates",
+      });
+    }
+
+    const totalAmount = calculateTotalAmount(
+      vehicle,
+      rentalPlan,
+      startDate,
+      endDate
+    );
+
+    const booking = await Booking.create({
+      user: req.user._id,
+      owner: vehicle.owner,
+      vehicle: vehicle._id,
+      startDate,
+      endDate,
+      rentalPlan,
+      totalAmount,
+      status: "pending",
+    });
+
+    res.status(201).json({
+      message: "Booking request sent successfully",
+      booking,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Booking creation failed",
+      error: error.message,
+    });
+  }
+};
+
+const getMyBookings = async (req, res) => {
+  try {
+    const bookings = await Booking.find({
+      user: req.user._id,
+    })
+      .populate("vehicle")
+      .populate("owner", "name email")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(bookings);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch bookings",
+      error: error.message,
+    });
+  }
+};
+
+const getOwnerBookings = async (req, res) => {
+  try {
+    const bookings = await Booking.find({
+      owner: req.user._id,
+    })
+      .populate("vehicle")
+      .populate("user", "name email")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(bookings);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch owner bookings",
+      error: error.message,
+    });
+  }
+};
+
+const approveBooking = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+
+    if (!booking) {
+      return res.status(404).json({
+        message: "Booking not found",
+      });
+    }
+
+    if (
+      booking.owner.toString() !== req.user._id.toString() &&
+      req.user.role !== "admin"
+    ) {
+      return res.status(403).json({
+        message: "Not allowed to approve this booking",
+      });
+    }
+
+    const conflict = await checkBookingConflict(
+      booking.vehicle,
+      booking.startDate,
+      booking.endDate,
+      ["approved"],
+      booking._id
+    );
+
+    if (conflict) {
+      return res.status(409).json({
+        message: "Another booking is already approved for these dates",
+      });
+    }
+
+    booking.status = "approved";
+    await booking.save();
+
+    res.status(200).json({
+      message: "Booking approved successfully",
+      booking,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Booking approval failed",
+      error: error.message,
+    });
+  }
+};
+
+const rejectBooking = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+
+    if (!booking) {
+      return res.status(404).json({
+        message: "Booking not found",
+      });
+    }
+
+    if (
+      booking.owner.toString() !== req.user._id.toString() &&
+      req.user.role !== "admin"
+    ) {
+      return res.status(403).json({
+        message: "Not allowed to reject this booking",
+      });
+    }
+
+    booking.status = "rejected";
+    await booking.save();
+
+    res.status(200).json({
+      message: "Booking rejected successfully",
+      booking,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Booking rejection failed",
+      error: error.message,
+    });
+  }
+};
+
+module.exports = {
+  createBooking,
+  getMyBookings,
+  getOwnerBookings,
+  approveBooking,
+  rejectBooking,
+};
