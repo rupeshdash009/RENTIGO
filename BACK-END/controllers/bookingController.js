@@ -1,4 +1,4 @@
-const Booking = require("../models/booking");
+const Booking = require("../models/Booking");
 const Vehicle = require("../models/Vehicle");
 const MaintenanceBlock = require("../models/MaintenanceBlock");
 
