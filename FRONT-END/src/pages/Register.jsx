@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { UserPlus, Building2 } from "lucide-react";
-import API from "../api/axios";
+import axios from "axios";
+
+const API_BASE_URL = "https://rento-backend-gmlw.onrender.com/api";
 
 function Register({ roleType }) {
   const navigate = useNavigate();
@@ -14,6 +16,7 @@ function Register({ roleType }) {
   });
 
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const savedUser = localStorage.getItem("user");
@@ -40,10 +43,12 @@ function Register({ roleType }) {
     setError("");
 
     try {
+      setLoading(true);
+
       localStorage.removeItem("token");
       localStorage.removeItem("user");
 
-      const res = await API.post("/auth/register", {
+      const res = await axios.post(`${API_BASE_URL}/auth/register`, {
         ...formData,
         role: roleType,
       });
@@ -60,11 +65,13 @@ function Register({ roleType }) {
       window.location.reload();
     } catch (error) {
       setError(error.response?.data?.message || "Registration failed");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="mx-auto flex min-h-[80vh] max-w-7xl items-center justify-center">
+    <div className="mx-auto flex min-h-[80vh] max-w-7xl items-center justify-center px-4">
       <div className="glass w-full max-w-md rounded-[2rem] p-7">
         <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-white">
           {isOwner ? <Building2 /> : <UserPlus />}
@@ -94,6 +101,7 @@ function Register({ roleType }) {
             placeholder={isOwner ? "Owner / Agency Name" : "Full Name"}
             value={formData.name}
             onChange={changeHandler}
+            required
           />
 
           <input
@@ -103,6 +111,7 @@ function Register({ roleType }) {
             placeholder="Email Address"
             value={formData.email}
             onChange={changeHandler}
+            required
           />
 
           <input
@@ -112,10 +121,20 @@ function Register({ roleType }) {
             placeholder="Password minimum 6 characters"
             value={formData.password}
             onChange={changeHandler}
+            required
+            minLength={6}
           />
 
-          <button className="btn-primary w-full" type="submit">
-            {isOwner ? "Create Owner Account" : "Create Customer Account"}
+          <button
+            className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
+            type="submit"
+            disabled={loading}
+          >
+            {loading
+              ? "Creating account..."
+              : isOwner
+                ? "Create Owner Account"
+                : "Create Customer Account"}
           </button>
         </form>
 

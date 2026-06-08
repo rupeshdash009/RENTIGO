@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CreditCard } from "lucide-react";
 import API from "../api/axios";
 import loadRazorpayScript from "../utils/loadRazorpay";
+import { triggerDataRefresh } from "../utils/dataRefresh";
 
 function PaymentButton({ booking, onPaymentSuccess }) {
   const [loading, setLoading] = useState(false);
@@ -18,7 +19,6 @@ function PaymentButton({ booking, onPaymentSuccess }) {
       }
 
       const orderRes = await API.post(`/payments/create-order/${booking._id}`);
-
       const orderData = orderRes.data;
 
       const user = JSON.parse(localStorage.getItem("user"));
@@ -28,7 +28,9 @@ function PaymentButton({ booking, onPaymentSuccess }) {
         amount: orderData.amount,
         currency: orderData.currency,
         name: "RentiGo",
-        description: `Payment for ${booking.vehicle?.vehicleName || "vehicle booking"}`,
+        description: `Payment for ${
+          booking.vehicle?.vehicleName || "vehicle booking"
+        }`,
         order_id: orderData.orderId,
 
         prefill: {
@@ -55,6 +57,8 @@ function PaymentButton({ booking, onPaymentSuccess }) {
 
             alert(verifyRes.data.message || "Payment successful");
 
+            triggerDataRefresh();
+
             if (onPaymentSuccess) {
               onPaymentSuccess();
             }
@@ -66,7 +70,7 @@ function PaymentButton({ booking, onPaymentSuccess }) {
         },
 
         modal: {
-          ondismiss: function () {
+          ondismiss: () => {
             alert("Payment popup closed.");
           },
         },

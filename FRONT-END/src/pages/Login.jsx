@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { LogIn, Building2 } from "lucide-react";
-import API from "../api/axios";
+import axios from "axios";
+
+const API_BASE_URL = "https://rento-backend-gmlw.onrender.com/api";
 
 function Login({ expectedRole }) {
   const navigate = useNavigate();
@@ -13,6 +15,7 @@ function Login({ expectedRole }) {
   });
 
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const savedUser = localStorage.getItem("user");
@@ -39,10 +42,12 @@ function Login({ expectedRole }) {
     setError("");
 
     try {
+      setLoading(true);
+
       localStorage.removeItem("token");
       localStorage.removeItem("user");
 
-      const res = await API.post("/auth/login", formData);
+      const res = await axios.post(`${API_BASE_URL}/auth/login`, formData);
       const loggedInUser = res.data.user;
 
       if (loggedInUser.role !== expectedRole) {
@@ -69,11 +74,13 @@ function Login({ expectedRole }) {
       window.location.reload();
     } catch (error) {
       setError(error.response?.data?.message || "Login failed");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="mx-auto flex min-h-[80vh] max-w-7xl items-center justify-center">
+    <div className="mx-auto flex min-h-[80vh] max-w-7xl items-center justify-center px-4">
       <div className="glass w-full max-w-md rounded-[2rem] p-7">
         <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-white">
           {isOwner ? <Building2 /> : <LogIn />}
@@ -103,6 +110,7 @@ function Login({ expectedRole }) {
             placeholder="Email Address"
             value={formData.email}
             onChange={changeHandler}
+            required
           />
 
           <input
@@ -112,10 +120,19 @@ function Login({ expectedRole }) {
             placeholder="Password"
             value={formData.password}
             onChange={changeHandler}
+            required
           />
 
-          <button className="btn-primary w-full" type="submit">
-            {isOwner ? "Login as Owner" : "Login as Customer"}
+          <button
+            className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
+            type="submit"
+            disabled={loading}
+          >
+            {loading
+              ? "Logging in..."
+              : isOwner
+                ? "Login as Owner"
+                : "Login as Customer"}
           </button>
         </form>
 

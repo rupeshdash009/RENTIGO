@@ -1,310 +1,448 @@
-import { useEffect, useState } from "react";
-import {
-  Users,
-  Building2,
-  Car,
-  CalendarCheck,
-  IndianRupee,
-  CheckCircle,
-  XCircle,
-} from "lucide-react";
-import API from "../api/axios";
-import StatCard from "../components/StatCard";
+import { useCallback, useState } from "react";
+import axios from "axios";
+import useAutoRefresh from "../hooks/useAutoRefresh";
+import { triggerDataRefresh } from "../utils/dataRefresh";
 
-function AdminDashboard() {
-  const [analytics, setAnalytics] = useState(null);
-  const [users, setUsers] = useState([]);
-  const [owners, setOwners] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
-  const [bookings, setBookings] = useState([]);
+const API_BASE_URL = "https://rento-backend-gmlw.onrender.com/api";
 
-  const getData = async () => {
-    try {
-      const [analyticsRes, usersRes, ownersRes, vehiclesRes, bookingsRes] =
-        await Promise.all([
-          API.get("/admin/analytics"),
-          API.get("/admin/users"),
-          API.get("/admin/owners"),
-          API.get("/admin/vehicles"),
-          API.get("/admin/bookings"),
-        ]);
+const authConfig = () => {
+  const token = localStorage.getItem("token");
 
-      setAnalytics(analyticsRes.data);
-      setUsers(usersRes.data);
-      setOwners(ownersRes.data);
-      setVehicles(vehiclesRes.data);
-      setBookings(bookingsRes.data);
-    } catch (error) {
-      console.log(error.response?.data?.message || error.message);
-    }
-  };
-
-  useEffect(() => {
-    getData();
-  }, []);
-
-  const approveVehicle = async (id) => {
-    try {
-      await API.put(`/admin/vehicles/${id}/approve`);
-      getData();
-    } catch (error) {
-      alert(error.response?.data?.message || "Approve failed");
-    }
-  };
-
-  const rejectVehicle = async (id) => {
-    try {
-      const reason = prompt("Enter rejection reason:");
-      await API.put(`/admin/vehicles/${id}/reject`, {
-        rejectionReason: reason || "Rejected by admin",
-      });
-      getData();
-    } catch (error) {
-      alert(error.response?.data?.message || "Reject failed");
-    }
-  };
-
-  const toggleUserStatus = async (id) => {
-    try {
-      await API.put(`/admin/users/${id}/status`);
-      getData();
-    } catch (error) {
-      alert(error.response?.data?.message || "Status update failed");
-    }
-  };
-
-  if (!analytics) {
-    return (
-      <section className="mx-auto max-w-7xl pt-8">
-        <div className="glass-soft rounded-3xl p-8 text-center text-slate-600">
-          Loading admin dashboard...
-        </div>
-      </section>
-    );
+  if (!token) {
+    return {};
   }
 
+  return {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  };
+};
+
+function AdminDashboard() {
+  const [analytics, setAnalytics] = useState({});
+  const [vehicles, setVehicles] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [owners, setOwners] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [activeTab, setActiveTab] = useState("vehicles");
+  const [loading, setLoading] = useState(true);
+
+  const fetchAdminData = useCallback(async () => {
+    try {
+      const [analyticsRes, vehiclesRes, usersRes, ownersRes, bookingsRes] =
+        await Promise.all([
+          axios.get(`${API_BASE_URL}/admin/analytics`, authConfig()),
+          axios.get(`${API_BASE_URL}/admin/vehicles`, authConfig()),
+          axios.get(`${API_BASE_URL}/admin/users`, authConfig()),
+          axios.get(`${API_BASE_URL}/admin/owners`, authConfig()),
+          axios.get(`${API_BASE_URL}/admin/bookings`, authConfig()),
+        ]);
+
+      setAnalytics(analyticsRes.data || {});
+
+      setVehicles(
+        Array.isArray(vehiclesRes.data)
+          ? vehiclesRes.data
+          : vehiclesRes.data.vehicles || [],
+      );
+
+      setUsers(
+        Array.isArray(usersRes.data)
+          ? usersRes.data
+          : usersRes.data.users || [],
+      );
+
+      setOwners(
+        Array.isArray(ownersRes.data)
+          ? ownersRes.data
+          : ownersRes.data.owners || [],
+      );
+
+      setBookings(
+        Array.isArray(bookingsRes.data)
+          ? bookingsRes.data
+          : bookingsRes.data.bookings || [],
+      );
+    } catch (error) {
+      console.error(error);
+      alert(error.response?.data?.message || "Failed to load admin data");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useAutoRefresh(fetchAdminData, 15000);
+
+  const approveVehicle = async (vehicleId) => {
+    try {
+      await axios.put(
+        `${API_BASE_URL}/admin/vehicles/${vehicleId}/approve`,
+        {},
+        authConfig(),
+      );
+
+      triggerDataRefresh();
+      await fetchAdminData();
+      alert("Vehicle approved");
+    } catch (error) {
+      alert(error.response?.data?.message || "Failed to approve vehicle");
+    }
+  };
+
+  const rejectVehicle = async (vehicleId) => {
+    const rejectionReason = window.prompt("Enter rejection reason:");
+
+    if (!rejectionReason) return;
+
+    try {
+      await axios.put(
+        `${API_BASE_URL}/admin/vehicles/${vehicleId}/reject`,
+        { rejectionReason },
+        authConfig(),
+      );
+
+      triggerDataRefresh();
+      await fetchAdminData();
+      alert("Vehicle rejected");
+    } catch (error) {
+      alert(error.response?.data?.message || "Failed to reject vehicle");
+    }
+  };
+
+  const toggleUserStatus = async (userId) => {
+    try {
+      await axios.put(
+        `${API_BASE_URL}/admin/users/${userId}/status`,
+        {},
+        authConfig(),
+      );
+
+      triggerDataRefresh();
+      await fetchAdminData();
+    } catch (error) {
+      alert(error.response?.data?.message || "Failed to update user status");
+    }
+  };
+
+  const badgeClass = (status) => {
+    if (status === "approved" || status === "available" || status === "paid") {
+      return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    }
+
+    if (status === "pending" || status === "unpaid") {
+      return "bg-amber-50 text-amber-700 border-amber-200";
+    }
+
+    if (
+      status === "rejected" ||
+      status === "cancelled" ||
+      status === "inactive" ||
+      status === "failed"
+    ) {
+      return "bg-red-50 text-red-700 border-red-200";
+    }
+
+    return "bg-slate-50 text-slate-700 border-slate-200";
+  };
+
+  const cards = [
+    {
+      label: "Users",
+      value: analytics.totalUsers ?? users.length,
+    },
+    {
+      label: "Owners",
+      value: analytics.totalOwners ?? owners.length,
+    },
+    {
+      label: "Vehicles",
+      value: analytics.totalVehicles ?? vehicles.length,
+    },
+    {
+      label: "Bookings",
+      value: analytics.totalBookings ?? bookings.length,
+    },
+  ];
+
   return (
-    <section className="mx-auto max-w-7xl pt-8">
-      <div className="mb-8">
-        <h1 className="page-title text-4xl md:text-5xl">Admin Dashboard</h1>
-        <p className="page-subtitle mt-3">
-          Manage users, owners, vehicles, bookings, approvals, and platform
-          analytics.
-        </p>
-      </div>
+    <main className="min-h-screen bg-slate-50 px-4 py-8">
+      <section className="mx-auto max-w-7xl">
+        <div className="mb-8 rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-sm backdrop-blur-xl">
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-400">
+                Admin Panel
+              </p>
+              <h1 className="mt-2 text-3xl font-black text-slate-950">
+                Admin Dashboard
+              </h1>
+              <p className="mt-2 text-sm text-slate-600">
+                Manage users, owners, vehicle approvals and bookings.
+              </p>
+            </div>
 
-      <div className="mb-8 grid gap-5 md:grid-cols-4">
-        <StatCard
-          title="Customers"
-          value={analytics.totalUsers}
-          icon={<Users />}
-        />
-        <StatCard
-          title="Owners"
-          value={analytics.totalOwners}
-          icon={<Building2 />}
-        />
-        <StatCard
-          title="Vehicles"
-          value={analytics.totalVehicles}
-          icon={<Car />}
-        />
-        <StatCard
-          title="Bookings"
-          value={analytics.totalBookings}
-          icon={<CalendarCheck />}
-        />
-        <StatCard
-          title="Revenue"
-          value={`₹${analytics.totalRevenue}`}
-          icon={<IndianRupee />}
-        />
-        <StatCard
-          title="Pending Vehicles"
-          value={analytics.pendingVehicles}
-          icon={<Car />}
-        />
-        <StatCard
-          title="Booking Conversion"
-          value={`${analytics.bookingConversionRate}%`}
-          icon={<CheckCircle />}
-        />
-        <StatCard
-          title="Vehicle Utilization"
-          value={`${analytics.vehicleUtilizationRate}%`}
-          icon={<CheckCircle />}
-        />
-      </div>
-
-      <div className="grid gap-8">
-        <div className="glass rounded-[2rem] p-6">
-          <h2 className="mb-5 text-2xl font-black text-slate-950">
-            Vehicle Approval Requests
-          </h2>
-
-          <div className="space-y-4">
-            {vehicles.map((vehicle) => (
-              <div
-                key={vehicle._id}
-                className="rounded-3xl bg-white p-5 shadow-sm"
-              >
-                <div className="flex flex-col justify-between gap-4 md:flex-row">
-                  <div>
-                    <h3 className="text-lg font-black text-slate-950">
-                      {vehicle.vehicleName}
-                    </h3>
-
-                    <p className="text-sm text-slate-500">
-                      {vehicle.vehicleNumber} • {vehicle.type} •{" "}
-                      {vehicle.location}
-                    </p>
-
-                    <p className="text-sm text-slate-500">
-                      Owner: {vehicle.owner?.name} • {vehicle.owner?.email}
-                    </p>
-                  </div>
-
-                  <span
-                    className={`badge h-fit ${
-                      vehicle.approvalStatus === "approved"
-                        ? "bg-emerald-50 text-emerald-700"
-                        : vehicle.approvalStatus === "rejected"
-                          ? "bg-red-50 text-red-700"
-                          : "bg-yellow-50 text-yellow-700"
-                    }`}
-                  >
-                    {vehicle.approvalStatus}
-                  </span>
-                </div>
-
-                {vehicle.approvalStatus === "pending" && (
-                  <div className="mt-5 flex gap-3">
-                    <button
-                      className="btn-primary flex items-center gap-2"
-                      onClick={() => approveVehicle(vehicle._id)}
-                    >
-                      <CheckCircle size={18} /> Approve
-                    </button>
-
-                    <button
-                      className="rounded-2xl bg-red-600 px-5 py-3 font-bold text-white"
-                      onClick={() => rejectVehicle(vehicle._id)}
-                    >
-                      <XCircle size={18} className="inline" /> Reject
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+            <button
+              onClick={fetchAdminData}
+              className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-800 transition hover:bg-slate-100"
+            >
+              Refresh
+            </button>
           </div>
         </div>
 
-        <div className="glass rounded-[2rem] p-6">
-          <h2 className="mb-5 text-2xl font-black text-slate-950">Customers</h2>
-
-          <div className="grid gap-4">
-            {users.map((user) => (
-              <div
-                key={user._id}
-                className="rounded-3xl bg-white p-4 shadow-sm md:flex md:items-center md:justify-between"
-              >
-                <div>
-                  <h3 className="font-black text-slate-950">{user.name}</h3>
-                  <p className="text-sm text-slate-500">{user.email}</p>
+        {loading ? (
+          <div className="rounded-[2rem] border border-white/70 bg-white/80 p-10 text-center text-slate-500 shadow-sm">
+            Loading admin dashboard...
+          </div>
+        ) : (
+          <>
+            <div className="mb-8 grid gap-4 md:grid-cols-4">
+              {cards.map((card) => (
+                <div
+                  key={card.label}
+                  className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur-xl"
+                >
+                  <p className="text-sm font-bold text-slate-500">
+                    {card.label}
+                  </p>
+                  <h2 className="mt-2 text-3xl font-black text-slate-950">
+                    {card.value}
+                  </h2>
                 </div>
+              ))}
+            </div>
 
+            <div className="mb-6 flex flex-wrap gap-3">
+              {["vehicles", "users", "owners", "bookings"].map((tab) => (
                 <button
-                  onClick={() => toggleUserStatus(user._id)}
-                  className={`mt-3 rounded-2xl px-5 py-2 font-bold md:mt-0 ${
-                    user.isActive
-                      ? "bg-red-50 text-red-700"
-                      : "bg-emerald-50 text-emerald-700"
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`rounded-2xl px-5 py-3 text-sm font-bold capitalize transition ${
+                    activeTab === tab
+                      ? "bg-slate-950 text-white"
+                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
                   }`}
                 >
-                  {user.isActive ? "Deactivate" : "Activate"}
+                  {tab}
                 </button>
-              </div>
-            ))}
-          </div>
-        </div>
+              ))}
+            </div>
 
-        <div className="glass rounded-[2rem] p-6">
-          <h2 className="mb-5 text-2xl font-black text-slate-950">
-            Rental Owners
-          </h2>
+            {activeTab === "vehicles" && (
+              <section className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur-xl">
+                <h2 className="text-xl font-black text-slate-950">
+                  Vehicle Listings
+                </h2>
 
-          <div className="grid gap-4">
-            {owners.map((owner) => (
-              <div
-                key={owner._id}
-                className="rounded-3xl bg-white p-4 shadow-sm md:flex md:items-center md:justify-between"
-              >
-                <div>
-                  <h3 className="font-black text-slate-950">{owner.name}</h3>
-                  <p className="text-sm text-slate-500">{owner.email}</p>
+                <div className="mt-5 space-y-4">
+                  {vehicles.length === 0 ? (
+                    <p className="text-sm text-slate-500">No vehicles found.</p>
+                  ) : (
+                    vehicles.map((vehicle) => (
+                      <div
+                        key={vehicle._id}
+                        className="rounded-3xl border border-slate-100 bg-slate-50 p-4"
+                      >
+                        <div className="flex flex-col justify-between gap-4 md:flex-row">
+                          <div>
+                            <h3 className="font-black text-slate-950">
+                              {vehicle.vehicleName}
+                            </h3>
+                            <p className="text-sm text-slate-500">
+                              {vehicle.vehicleNumber} • {vehicle.brand}{" "}
+                              {vehicle.model}
+                            </p>
+                            <p className="mt-1 text-sm text-slate-500">
+                              Owner: {vehicle.owner?.name || "N/A"} •{" "}
+                              {vehicle.location}
+                            </p>
+
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <span
+                                className={`rounded-full border px-3 py-1 text-xs font-bold capitalize ${badgeClass(
+                                  vehicle.approvalStatus,
+                                )}`}
+                              >
+                                Approval: {vehicle.approvalStatus}
+                              </span>
+
+                              <span
+                                className={`rounded-full border px-3 py-1 text-xs font-bold capitalize ${badgeClass(
+                                  vehicle.status,
+                                )}`}
+                              >
+                                Status: {vehicle.status}
+                              </span>
+                            </div>
+                          </div>
+
+                          {vehicle.approvalStatus === "pending" && (
+                            <div className="flex h-fit gap-2">
+                              <button
+                                onClick={() => approveVehicle(vehicle._id)}
+                                className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700"
+                              >
+                                Approve
+                              </button>
+
+                              <button
+                                onClick={() => rejectVehicle(vehicle._id)}
+                                className="rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
+              </section>
+            )}
 
-                <button
-                  onClick={() => toggleUserStatus(owner._id)}
-                  className={`mt-3 rounded-2xl px-5 py-2 font-bold md:mt-0 ${
-                    owner.isActive
-                      ? "bg-red-50 text-red-700"
-                      : "bg-emerald-50 text-emerald-700"
-                  }`}
-                >
-                  {owner.isActive ? "Deactivate" : "Activate"}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
+            {activeTab === "users" && (
+              <section className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur-xl">
+                <h2 className="text-xl font-black text-slate-950">Customers</h2>
 
-        <div className="glass rounded-[2rem] p-6">
-          <h2 className="mb-5 text-2xl font-black text-slate-950">
-            All Bookings
-          </h2>
+                <div className="mt-5 space-y-4">
+                  {users.map((user) => (
+                    <div
+                      key={user._id}
+                      className="flex flex-col justify-between gap-3 rounded-3xl border border-slate-100 bg-slate-50 p-4 md:flex-row md:items-center"
+                    >
+                      <div>
+                        <h3 className="font-black text-slate-950">
+                          {user.name}
+                        </h3>
+                        <p className="text-sm text-slate-500">{user.email}</p>
+                      </div>
 
-          <div className="space-y-4">
-            {bookings.map((booking) => (
-              <div
-                key={booking._id}
-                className="rounded-3xl bg-white p-5 shadow-sm"
-              >
-                <div className="flex flex-col justify-between gap-4 md:flex-row">
-                  <div>
-                    <h3 className="font-black text-slate-950">
-                      {booking.vehicle?.vehicleName}
-                    </h3>
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`rounded-full border px-3 py-1 text-xs font-bold ${
+                            user.isActive
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-red-200 bg-red-50 text-red-700"
+                          }`}
+                        >
+                          {user.isActive ? "Active" : "Inactive"}
+                        </span>
 
-                    <p className="text-sm text-slate-500">
-                      Customer: {booking.user?.name} • Owner:{" "}
-                      {booking.owner?.name}
-                    </p>
-
-                    <p className="text-sm text-slate-500">
-                      {booking.startDate?.slice(0, 10)} to{" "}
-                      {booking.endDate?.slice(0, 10)} • ₹{booking.totalAmount}
-                    </p>
-                  </div>
-
-                  <span
-                    className={`badge h-fit ${
-                      booking.status === "approved"
-                        ? "bg-emerald-50 text-emerald-700"
-                        : booking.status === "rejected"
-                          ? "bg-red-50 text-red-700"
-                          : "bg-yellow-50 text-yellow-700"
-                    }`}
-                  >
-                    {booking.status}
-                  </span>
+                        <button
+                          onClick={() => toggleUserStatus(user._id)}
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-800 hover:bg-slate-100"
+                        >
+                          Toggle
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
+              </section>
+            )}
+
+            {activeTab === "owners" && (
+              <section className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur-xl">
+                <h2 className="text-xl font-black text-slate-950">Owners</h2>
+
+                <div className="mt-5 space-y-4">
+                  {owners.map((owner) => (
+                    <div
+                      key={owner._id}
+                      className="flex flex-col justify-between gap-3 rounded-3xl border border-slate-100 bg-slate-50 p-4 md:flex-row md:items-center"
+                    >
+                      <div>
+                        <h3 className="font-black text-slate-950">
+                          {owner.name}
+                        </h3>
+                        <p className="text-sm text-slate-500">{owner.email}</p>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`rounded-full border px-3 py-1 text-xs font-bold ${
+                            owner.isActive
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-red-200 bg-red-50 text-red-700"
+                          }`}
+                        >
+                          {owner.isActive ? "Active" : "Inactive"}
+                        </span>
+
+                        <button
+                          onClick={() => toggleUserStatus(owner._id)}
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-800 hover:bg-slate-100"
+                        >
+                          Toggle
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {activeTab === "bookings" && (
+              <section className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur-xl">
+                <h2 className="text-xl font-black text-slate-950">
+                  All Bookings
+                </h2>
+
+                <div className="mt-5 space-y-4">
+                  {bookings.length === 0 ? (
+                    <p className="text-sm text-slate-500">No bookings found.</p>
+                  ) : (
+                    bookings.map((booking) => (
+                      <div
+                        key={booking._id}
+                        className="rounded-3xl border border-slate-100 bg-slate-50 p-4"
+                      >
+                        <div className="flex flex-col justify-between gap-3 md:flex-row">
+                          <div>
+                            <h3 className="font-black text-slate-950">
+                              {booking.vehicle?.vehicleName || "Vehicle"}
+                            </h3>
+
+                            <p className="text-sm text-slate-500">
+                              Customer: {booking.user?.name || "N/A"} • Owner:{" "}
+                              {booking.owner?.name || "N/A"}
+                            </p>
+
+                            <p className="mt-1 text-sm text-slate-500">
+                              ₹{booking.totalAmount} • {booking.rentalPlan}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            <span
+                              className={`h-fit rounded-full border px-3 py-1 text-xs font-bold capitalize ${badgeClass(
+                                booking.status,
+                              )}`}
+                            >
+                              {booking.status}
+                            </span>
+
+                            <span
+                              className={`h-fit rounded-full border px-3 py-1 text-xs font-bold capitalize ${badgeClass(
+                                booking.paymentStatus,
+                              )}`}
+                            >
+                              {booking.paymentStatus || "unpaid"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
+            )}
+          </>
+        )}
+      </section>
+    </main>
   );
 }
 

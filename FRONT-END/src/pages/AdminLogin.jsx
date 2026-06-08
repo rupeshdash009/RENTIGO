@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
-import API from "../api/axios";
+import axios from "axios";
+
+const API_BASE_URL = "https://rento-backend-gmlw.onrender.com/api";
 
 function AdminLogin() {
   const navigate = useNavigate();
@@ -12,6 +14,7 @@ function AdminLogin() {
   });
 
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const changeHandler = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -22,10 +25,12 @@ function AdminLogin() {
     setError("");
 
     try {
+      setLoading(true);
+
       localStorage.removeItem("token");
       localStorage.removeItem("user");
 
-      const res = await API.post("/auth/login", formData);
+      const res = await axios.post(`${API_BASE_URL}/auth/login`, formData);
 
       if (res.data.user.role !== "admin") {
         setError("This is not an admin account.");
@@ -39,17 +44,20 @@ function AdminLogin() {
       window.location.reload();
     } catch (error) {
       setError(error.response?.data?.message || "Admin login failed");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <section className="mx-auto flex min-h-[80vh] max-w-7xl items-center justify-center">
+    <section className="mx-auto flex min-h-[80vh] max-w-7xl items-center justify-center px-4">
       <div className="glass w-full max-w-md rounded-[2rem] p-7">
         <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-white">
           <ShieldCheck />
         </div>
 
         <h1 className="text-3xl font-black text-slate-950">Admin Login</h1>
+
         <p className="mt-2 text-slate-500">
           Login to manage RentiGo platform operations.
         </p>
@@ -68,6 +76,7 @@ function AdminLogin() {
             placeholder="Admin email"
             value={formData.email}
             onChange={changeHandler}
+            required
           />
 
           <input
@@ -77,10 +86,15 @@ function AdminLogin() {
             placeholder="Admin password"
             value={formData.password}
             onChange={changeHandler}
+            required
           />
 
-          <button className="btn-primary w-full" type="submit">
-            Login as Admin
+          <button
+            className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? "Logging in..." : "Login as Admin"}
           </button>
         </form>
       </div>

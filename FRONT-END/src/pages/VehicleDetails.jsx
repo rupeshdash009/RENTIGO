@@ -10,13 +10,31 @@ import {
   Settings,
   ArrowLeft,
 } from "lucide-react";
-import API from "../api/axios";
+import axios from "axios";
+import { triggerDataRefresh } from "../utils/dataRefresh";
+
+const API_BASE_URL = "https://rento-backend-gmlw.onrender.com/api";
+
+const authConfig = () => {
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    return {};
+  }
+
+  return {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  };
+};
 
 function VehicleDetails() {
   const { id } = useParams();
 
   const [vehicle, setVehicle] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [bookingLoading, setBookingLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -28,25 +46,39 @@ function VehicleDetails() {
 
   const today = new Date().toISOString().split("T")[0];
 
-  const getVehicle = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const res = await API.get(`/vehicles/${id}`);
-      setVehicle(res.data);
-    } catch (error) {
-      console.log("VEHICLE DETAILS ERROR:", error);
-      setError(error.response?.data?.message || "Vehicle not found");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    let isMounted = true;
+
+    const fetchVehicle = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const res = await axios.get(`${API_BASE_URL}/vehicles/${id}`);
+
+        if (isMounted) {
+          setVehicle(res.data);
+        }
+      } catch (error) {
+        console.log("VEHICLE DETAILS ERROR:", error);
+
+        if (isMounted) {
+          setError(error.response?.data?.message || "Vehicle not found");
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
     if (id) {
-      getVehicle();
+      fetchVehicle();
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
   const changeHandler = (e) => {
@@ -73,7 +105,7 @@ function VehicleDetails() {
 
     const token = localStorage.getItem("token");
 
-    let user = null;
+    let user;
 
     try {
       user = JSON.parse(localStorage.getItem("user"));
@@ -110,12 +142,18 @@ function VehicleDetails() {
     }
 
     try {
-      const res = await API.post("/bookings", {
-        vehicleId: id,
-        startDate: bookingData.startDate,
-        endDate: bookingData.endDate,
-        rentalPlan: bookingData.rentalPlan,
-      });
+      setBookingLoading(true);
+
+      const res = await axios.post(
+        `${API_BASE_URL}/bookings`,
+        {
+          vehicleId: id,
+          startDate: bookingData.startDate,
+          endDate: bookingData.endDate,
+          rentalPlan: bookingData.rentalPlan,
+        },
+        authConfig(),
+      );
 
       setMessage(res.data.message || "Booking request sent successfully");
 
@@ -124,9 +162,13 @@ function VehicleDetails() {
         endDate: "",
         rentalPlan: "daily",
       });
+
+      triggerDataRefresh();
     } catch (error) {
       console.log("BOOKING ERROR:", error);
       setError(error.response?.data?.message || "Booking failed");
+    } finally {
+      setBookingLoading(false);
     }
   };
 
@@ -293,6 +335,7 @@ function VehicleDetails() {
                 min={today}
                 value={bookingData.startDate}
                 onChange={changeHandler}
+                required
               />
             </div>
 
@@ -308,6 +351,7 @@ function VehicleDetails() {
                 min={bookingData.startDate || today}
                 value={bookingData.endDate}
                 onChange={changeHandler}
+                required
               />
             </div>
 
@@ -328,8 +372,12 @@ function VehicleDetails() {
               </select>
             </div>
 
-            <button className="btn-primary w-full" type="submit">
-              Send Booking Request
+            <button
+              className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
+              type="submit"
+              disabled={bookingLoading}
+            >
+              {bookingLoading ? "Sending Request..." : "Send Booking Request"}
             </button>
           </form>
         </div>
