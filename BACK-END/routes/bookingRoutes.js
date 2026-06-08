@@ -13,17 +13,21 @@ const { protect, authorize } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-router.post("/", protect, authorize("customer", "admin"), createBooking);
+// Customer creates booking
+router.post("/", protect, authorize("customer"), createBooking);
 
+// Customer booking history
+router.get("/my-bookings", protect, authorize("customer"), getMyBookings);
+
+// Owner booking requests
 router.get(
-  "/my-bookings",
+  "/owner/bookings",
   protect,
-  authorize("customer", "admin"),
-  getMyBookings,
+  authorize("owner", "admin"),
+  getOwnerBookings,
 );
 
-router.get("/owner", protect, authorize("owner", "admin"), getOwnerBookings);
-
+// Owner approves booking
 router.put(
   "/:id/approve",
   protect,
@@ -31,8 +35,10 @@ router.put(
   approveBooking,
 );
 
+// Owner rejects booking
 router.put("/:id/reject", protect, authorize("owner", "admin"), rejectBooking);
 
+// Customer cancels booking
 router.put(
   "/:id/cancel",
   protect,

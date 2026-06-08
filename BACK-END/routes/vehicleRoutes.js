@@ -14,8 +14,10 @@ const { protect, authorize } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
+// Public approved vehicles
 router.get("/", getVehicles);
 
+// Owner vehicles - keep before /:id
 router.get(
   "/owner/my-vehicles",
   protect,
@@ -23,8 +25,10 @@ router.get(
   getOwnerVehicles,
 );
 
+// Owner creates vehicle
 router.post("/", protect, authorize("owner", "admin"), createVehicle);
 
+// Owner updates vehicle status
 router.put(
   "/:id/status",
   protect,
@@ -32,10 +36,13 @@ router.put(
   updateVehicleStatus,
 );
 
+// Owner updates vehicle
 router.put("/:id", protect, authorize("owner", "admin"), updateVehicle);
 
+// Owner deletes vehicle
 router.delete("/:id", protect, authorize("owner", "admin"), deleteVehicle);
 
+// Public vehicle details - keep last
 router.get("/:id", getVehicleById);
 
 module.exports = router;
