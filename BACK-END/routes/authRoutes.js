@@ -3,15 +3,15 @@ const express = require("express");
 const {
   registerUser,
   loginUser,
-  getMe,
+  createAdmin,
 } = require("../controllers/authControllers");
-
-const { protect } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
 router.post("/register", registerUser);
 router.post("/login", loginUser);
-router.get("/me", protect, getMe);
+
+// Secret Postman-only admin creation route
+router.post("/create-admin", createAdmin);
 
 module.exports = router;
