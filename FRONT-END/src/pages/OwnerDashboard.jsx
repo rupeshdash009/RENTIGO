@@ -40,6 +40,20 @@ const emptyVehicleForm = {
   status: "available",
 };
 
+const commonsImage = (fileName) => {
+  return `https://commons.wikimedia.org/wiki/Special:Redirect/file/${encodeURIComponent(
+    fileName,
+  )}`;
+};
+
+const getVehicleImage = (vehicle) => {
+  if (Array.isArray(vehicle?.images)) {
+    return vehicle.images.find(Boolean) || "";
+  }
+
+  return vehicle?.images || "";
+};
+
 const vehiclePresets = [
   {
     label: "Honda Activa 6G DLX",
@@ -52,7 +66,7 @@ const vehiclePresets = [
     fuelType: "petrol",
     transmission: "automatic",
     baseDaily: 450,
-    image: "https://images.pexels.com/photos/2549941/pexels-photo-2549941.jpeg",
+    image: commonsImage("Honda Activa 6G.jpg"),
     description:
       "Reliable city scooter for daily commute, college travel and short-distance rentals.",
   },
@@ -67,7 +81,7 @@ const vehiclePresets = [
     fuelType: "petrol",
     transmission: "automatic",
     baseDaily: 430,
-    image: "https://images.pexels.com/photos/2549941/pexels-photo-2549941.jpeg",
+    image: commonsImage("TVS Jupiter Scooter.jpg"),
     description:
       "Comfortable scooter with good mileage and easy handling for city rides.",
   },
@@ -82,7 +96,7 @@ const vehiclePresets = [
     fuelType: "electric",
     transmission: "automatic",
     baseDaily: 650,
-    image: "https://images.pexels.com/photos/110844/pexels-photo-110844.jpeg",
+    image: commonsImage("OLA S1 Pro Gen 1 Electric Scooter.jpg"),
     description:
       "Modern electric scooter with silent drive, smooth acceleration and low running cost.",
   },
@@ -97,7 +111,7 @@ const vehiclePresets = [
     fuelType: "petrol",
     transmission: "manual",
     baseDaily: 850,
-    image: "https://images.pexels.com/photos/2519374/pexels-photo-2519374.jpeg",
+    image: commonsImage("Royal Enfield Classic Signals 350.jpg"),
     description:
       "Cruiser motorcycle for weekend trips, highway rides and premium rentals.",
   },
@@ -112,7 +126,7 @@ const vehiclePresets = [
     fuelType: "petrol",
     transmission: "manual",
     baseDaily: 780,
-    image: "https://images.pexels.com/photos/2519374/pexels-photo-2519374.jpeg",
+    image: commonsImage("2018 Yamaha MT-15.jpg"),
     description:
       "Sporty street motorcycle for riders who want performance and style.",
   },
@@ -127,7 +141,7 @@ const vehiclePresets = [
     fuelType: "petrol",
     transmission: "manual",
     baseDaily: 1600,
-    image: "https://images.pexels.com/photos/170811/pexels-photo-170811.jpeg",
+    image: commonsImage("Maruti Suzuki Swift 4456.JPG"),
     description:
       "Compact hatchback with easy city handling and good fuel efficiency.",
   },
@@ -142,7 +156,7 @@ const vehiclePresets = [
     fuelType: "petrol",
     transmission: "manual",
     baseDaily: 1750,
-    image: "https://images.pexels.com/photos/170811/pexels-photo-170811.jpeg",
+    image: commonsImage("Hyundai i20 (53439409577).jpg"),
     description:
       "Premium hatchback for city rides, short trips and comfortable daily use.",
   },
@@ -157,7 +171,7 @@ const vehiclePresets = [
     fuelType: "petrol",
     transmission: "manual",
     baseDaily: 2400,
-    image: "https://images.pexels.com/photos/116675/pexels-photo-116675.jpeg",
+    image: commonsImage("0 Honda City (7th generation) sedan.jpg"),
     description:
       "Comfortable sedan for business travel, family rides and long routes.",
   },
@@ -172,7 +186,7 @@ const vehiclePresets = [
     fuelType: "petrol",
     transmission: "automatic",
     baseDaily: 3200,
-    image: "https://images.pexels.com/photos/116675/pexels-photo-116675.jpeg",
+    image: commonsImage("Hyundai Creta 1.5 GL 2024.jpg"),
     description:
       "Feature-rich compact SUV for family trips, business rides and touring.",
   },
@@ -187,7 +201,7 @@ const vehiclePresets = [
     fuelType: "petrol",
     transmission: "automatic",
     baseDaily: 3400,
-    image: "https://images.pexels.com/photos/116675/pexels-photo-116675.jpeg",
+    image: commonsImage("Kia Seltos 2024.jpg"),
     description:
       "Premium SUV with strong road presence and comfortable cabin features.",
   },
@@ -202,7 +216,7 @@ const vehiclePresets = [
     fuelType: "electric",
     transmission: "automatic",
     baseDaily: 3600,
-    image: "https://images.pexels.com/photos/110844/pexels-photo-110844.jpeg",
+    image: commonsImage("2020 Tata Nexon EV (India) front view.png"),
     description:
       "Electric compact SUV with silent drive, low running cost and modern tech.",
   },
@@ -217,7 +231,7 @@ const vehiclePresets = [
     fuelType: "hybrid",
     transmission: "automatic",
     baseDaily: 4500,
-    image: "https://images.pexels.com/photos/116675/pexels-photo-116675.jpeg",
+    image: commonsImage("Toyota Zenix 2.0 V 2023 (2).jpg"),
     description:
       "Spacious MPV for family trips, airport transfers and group travel.",
   },
@@ -232,7 +246,7 @@ const vehiclePresets = [
     fuelType: "diesel",
     transmission: "automatic",
     baseDaily: 4800,
-    image: "https://images.pexels.com/photos/116675/pexels-photo-116675.jpeg",
+    image: commonsImage("2023 Mahindra XUV700 AX7L front.jpg"),
     description:
       "Powerful premium SUV for long-distance trips, large families and touring.",
   },
@@ -247,7 +261,7 @@ const vehiclePresets = [
     fuelType: "diesel",
     transmission: "automatic",
     baseDaily: 6200,
-    image: "https://images.pexels.com/photos/116675/pexels-photo-116675.jpeg",
+    image: commonsImage("Toyota Fortuner.jpg"),
     description:
       "Luxury SUV for premium rentals, highway touring and executive travel.",
   },
@@ -635,7 +649,8 @@ function OwnerDashboard() {
 
               <p className="mt-2 text-sm text-slate-500">
                 Select any vehicle variant or generate a random vehicle. Details
-                like year, number, price, location and image will auto-fill.
+                like year, number, price, location and real model image will
+                auto-fill.
               </p>
 
               <div className="mt-5 grid gap-4 md:grid-cols-[1fr_auto_auto]">
@@ -945,7 +960,15 @@ function OwnerDashboard() {
                           </span>
                         </div>
 
-                        <div className="mt-3 flex flex-wrap gap-2">
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          {getVehicleImage(vehicle) && (
+                            <img
+                              src={getVehicleImage(vehicle)}
+                              alt={vehicle.vehicleName}
+                              className="h-16 w-24 rounded-2xl object-cover"
+                            />
+                          )}
+
                           <span
                             className={`rounded-full border px-3 py-1 text-xs font-bold capitalize ${badgeClass(
                               vehicle.status,

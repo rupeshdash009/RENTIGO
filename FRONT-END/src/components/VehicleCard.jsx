@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Car, Fuel, MapPin, Bike, IndianRupee } from "lucide-react";
 
@@ -8,6 +9,14 @@ function VehicleCard({
   onDelete,
 }) {
   const vehicleId = vehicle?._id || vehicle?.id;
+  const [imageFailed, setImageFailed] = useState(false);
+  const imageUrl = Array.isArray(vehicle?.images)
+    ? vehicle.images.find(Boolean)
+    : vehicle?.images;
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [imageUrl]);
 
   const statusColors = {
     available: "bg-emerald-50 text-emerald-700",
@@ -16,15 +25,26 @@ function VehicleCard({
   };
 
   const statusClass = statusColors[vehicle?.status] ?? "bg-red-50 text-red-700";
+  const fallbackIcon =
+    vehicle?.type === "two-wheeler" ? (
+      <Bike size={72} className="text-blue-600" />
+    ) : (
+      <Car size={72} className="text-purple-600" />
+    );
 
   return (
     <div className="glass-soft group overflow-hidden rounded-3xl p-5 transition hover:-translate-y-1 hover:shadow-xl">
       {/* Vehicle image / icon */}
-      <div className="mb-5 flex h-44 items-center justify-center rounded-3xl bg-gradient-to-br from-blue-50 to-purple-50">
-        {vehicle?.type === "two-wheeler" ? (
-          <Bike size={72} className="text-blue-600" />
+      <div className="mb-5 flex h-44 items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-br from-blue-50 to-purple-50">
+        {imageUrl && !imageFailed ? (
+          <img
+            src={imageUrl}
+            alt={vehicle?.vehicleName || "Vehicle"}
+            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+            onError={() => setImageFailed(true)}
+          />
         ) : (
-          <Car size={72} className="text-purple-600" />
+          fallbackIcon
         )}
       </div>
 
