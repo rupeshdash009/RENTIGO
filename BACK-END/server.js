@@ -20,11 +20,25 @@ connectDB();
 
 const app = express();
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://rento-smart.vercel.app",
+  "https://rento-bay-ten.vercel.app",
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
 app.use(helmet());
 
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.log("Blocked by CORS:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   }),
 );
@@ -46,7 +60,7 @@ app.post(
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  res.send("RentiGo API is running");
+  res.status(200).send("RentiGo API is running");
 });
 
 app.use("/api/auth", authLimiter, authRoutes);
@@ -55,6 +69,12 @@ app.use("/api/bookings", bookingRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/maintenance", maintenanceRoutes);
 app.use("/api/payments", paymentRoutes);
+
+app.use((req, res) => {
+  res.status(404).json({
+    message: "API route not found",
+  });
+});
 
 const PORT = process.env.PORT || 5000;
 
