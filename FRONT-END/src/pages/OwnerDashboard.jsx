@@ -1,23 +1,18 @@
-import { useCallback, useMemo, useState } from "react";
-import axios from "axios";
-import useAutoRefresh from "../hooks/useAutoRefresh";
-import { triggerDataRefresh } from "../utils/dataRefresh";
-
-const API_BASE_URL = "https://rento-backend-gmlw.onrender.com/api";
-
-const authConfig = () => {
-  const token = localStorage.getItem("token");
-
-  if (!token) {
-    return {};
-  }
-
-  return {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  };
-};
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  AlertCircle,
+  CalendarCheck,
+  Car,
+  CheckCircle2,
+  IndianRupee,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Trash2,
+  Wand2,
+  XCircle,
+} from "lucide-react";
+import API from "../api/axios";
 
 const emptyVehicleForm = {
   vehicleName: "",
@@ -36,468 +31,410 @@ const emptyVehicleForm = {
   depositAmount: "",
   location: "",
   description: "",
-  images: "",
+  imageUrl: "",
   status: "available",
-};
-
-const commonsImage = (fileName) => {
-  return `https://commons.wikimedia.org/wiki/Special:Redirect/file/${encodeURIComponent(
-    fileName,
-  )}`;
-};
-
-const getVehicleImage = (vehicle) => {
-  if (Array.isArray(vehicle?.images)) {
-    return vehicle.images.find(Boolean) || "";
-  }
-
-  return vehicle?.images || "";
 };
 
 const vehiclePresets = [
   {
-    label: "Honda Activa 6G DLX",
     vehicleName: "Honda Activa 6G",
     brand: "Honda",
-    model: "Activa 6G",
-    variant: "DLX",
+    model: "Activa",
+    variant: "6G",
     type: "two-wheeler",
-    bodyType: "scooter",
+    bodyType: "Scooter",
     fuelType: "petrol",
     transmission: "automatic",
-    baseDaily: 450,
-    image: commonsImage("Honda Activa 6G.jpg"),
-    description:
-      "Reliable city scooter for daily commute, college travel and short-distance rentals.",
+    priceDaily: 450,
+    imageUrl:
+      "https://images.pexels.com/photos/2798304/pexels-photo-2798304.jpeg",
+    specs: {
+      engineCC: 110,
+      mileageKmpl: 45,
+      seatingCapacity: 2,
+      features: ["Easy ride", "Good mileage", "City friendly"],
+    },
   },
   {
-    label: "TVS Jupiter ZX",
     vehicleName: "TVS Jupiter",
     brand: "TVS",
     model: "Jupiter",
     variant: "ZX",
     type: "two-wheeler",
-    bodyType: "scooter",
+    bodyType: "Scooter",
     fuelType: "petrol",
     transmission: "automatic",
-    baseDaily: 430,
-    image: commonsImage("TVS Jupiter Scooter.jpg"),
-    description:
-      "Comfortable scooter with good mileage and easy handling for city rides.",
+    priceDaily: 430,
+    imageUrl:
+      "https://images.pexels.com/photos/1413412/pexels-photo-1413412.jpeg",
+    specs: {
+      engineCC: 110,
+      mileageKmpl: 48,
+      seatingCapacity: 2,
+      features: ["Smooth ride", "Family scooter", "Fuel efficient"],
+    },
   },
   {
-    label: "Ola S1 Pro",
     vehicleName: "Ola S1 Pro",
-    brand: "Ola Electric",
-    model: "S1 Pro",
-    variant: "Gen 2",
+    brand: "Ola",
+    model: "S1",
+    variant: "Pro",
     type: "two-wheeler",
-    bodyType: "electric-scooter",
+    bodyType: "Electric Scooter",
     fuelType: "electric",
     transmission: "automatic",
-    baseDaily: 650,
-    image: commonsImage("OLA S1 Pro Gen 1 Electric Scooter.jpg"),
-    description:
-      "Modern electric scooter with silent drive, smooth acceleration and low running cost.",
+    priceDaily: 650,
+    imageUrl:
+      "https://images.pexels.com/photos/163407/scooter-vespa-vehicle-motorcycle-163407.jpeg",
+    specs: {
+      batteryRangeKm: 150,
+      seatingCapacity: 2,
+      features: ["Electric", "Smart display", "Low running cost"],
+    },
   },
   {
-    label: "Royal Enfield Classic 350",
     vehicleName: "Royal Enfield Classic 350",
     brand: "Royal Enfield",
-    model: "Classic 350",
-    variant: "Signals",
+    model: "Classic",
+    variant: "350",
     type: "two-wheeler",
-    bodyType: "motorcycle",
+    bodyType: "Bike",
     fuelType: "petrol",
     transmission: "manual",
-    baseDaily: 850,
-    image: commonsImage("Royal Enfield Classic Signals 350.jpg"),
-    description:
-      "Cruiser motorcycle for weekend trips, highway rides and premium rentals.",
+    priceDaily: 950,
+    imageUrl:
+      "https://images.pexels.com/photos/2519374/pexels-photo-2519374.jpeg",
+    specs: {
+      engineCC: 350,
+      mileageKmpl: 35,
+      seatingCapacity: 2,
+      features: ["Cruiser", "Powerful engine", "Premium ride"],
+    },
   },
   {
-    label: "Yamaha MT-15 V2",
-    vehicleName: "Yamaha MT-15",
-    brand: "Yamaha",
-    model: "MT-15",
-    variant: "V2",
-    type: "two-wheeler",
-    bodyType: "motorcycle",
-    fuelType: "petrol",
-    transmission: "manual",
-    baseDaily: 780,
-    image: commonsImage("2018 Yamaha MT-15.jpg"),
-    description:
-      "Sporty street motorcycle for riders who want performance and style.",
-  },
-  {
-    label: "Maruti Suzuki Swift ZXI",
     vehicleName: "Maruti Suzuki Swift",
     brand: "Maruti Suzuki",
     model: "Swift",
     variant: "ZXI",
     type: "four-wheeler",
-    bodyType: "hatchback",
+    bodyType: "Hatchback",
     fuelType: "petrol",
     transmission: "manual",
-    baseDaily: 1600,
-    image: commonsImage("Maruti Suzuki Swift 4456.JPG"),
-    description:
-      "Compact hatchback with easy city handling and good fuel efficiency.",
+    priceDaily: 1800,
+    imageUrl:
+      "https://images.pexels.com/photos/170811/pexels-photo-170811.jpeg",
+    specs: {
+      engineCC: 1197,
+      mileageKmpl: 22,
+      seatingCapacity: 5,
+      features: ["Compact", "AC", "Music system"],
+    },
   },
   {
-    label: "Hyundai i20 Sportz",
-    vehicleName: "Hyundai i20",
-    brand: "Hyundai",
-    model: "i20",
-    variant: "Sportz",
-    type: "four-wheeler",
-    bodyType: "hatchback",
-    fuelType: "petrol",
-    transmission: "manual",
-    baseDaily: 1750,
-    image: commonsImage("Hyundai i20 (53439409577).jpg"),
-    description:
-      "Premium hatchback for city rides, short trips and comfortable daily use.",
-  },
-  {
-    label: "Honda City VX",
-    vehicleName: "Honda City",
-    brand: "Honda",
-    model: "City",
-    variant: "VX",
-    type: "four-wheeler",
-    bodyType: "sedan",
-    fuelType: "petrol",
-    transmission: "manual",
-    baseDaily: 2400,
-    image: commonsImage("0 Honda City (7th generation) sedan.jpg"),
-    description:
-      "Comfortable sedan for business travel, family rides and long routes.",
-  },
-  {
-    label: "Hyundai Creta SX",
     vehicleName: "Hyundai Creta",
     brand: "Hyundai",
     model: "Creta",
     variant: "SX",
     type: "four-wheeler",
-    bodyType: "suv",
-    fuelType: "petrol",
-    transmission: "automatic",
-    baseDaily: 3200,
-    image: commonsImage("Hyundai Creta 1.5 GL 2024.jpg"),
-    description:
-      "Feature-rich compact SUV for family trips, business rides and touring.",
+    bodyType: "SUV",
+    fuelType: "diesel",
+    transmission: "manual",
+    priceDaily: 3200,
+    imageUrl:
+      "https://images.pexels.com/photos/116675/pexels-photo-116675.jpeg",
+    specs: {
+      engineCC: 1497,
+      mileageKmpl: 18,
+      seatingCapacity: 5,
+      features: ["SUV", "AC", "Touchscreen", "Spacious"],
+    },
   },
   {
-    label: "Kia Seltos HTX",
     vehicleName: "Kia Seltos",
     brand: "Kia",
     model: "Seltos",
     variant: "HTX",
     type: "four-wheeler",
-    bodyType: "suv",
+    bodyType: "SUV",
     fuelType: "petrol",
     transmission: "automatic",
-    baseDaily: 3400,
-    image: commonsImage("Kia Seltos 2024.jpg"),
-    description:
-      "Premium SUV with strong road presence and comfortable cabin features.",
+    priceDaily: 3400,
+    imageUrl:
+      "https://images.pexels.com/photos/112460/pexels-photo-112460.jpeg",
+    specs: {
+      engineCC: 1497,
+      mileageKmpl: 17,
+      seatingCapacity: 5,
+      features: ["Automatic", "Premium cabin", "SUV"],
+    },
   },
   {
-    label: "Tata Nexon EV",
-    vehicleName: "Tata Nexon EV",
-    brand: "Tata",
-    model: "Nexon EV",
-    variant: "Empowered",
-    type: "four-wheeler",
-    bodyType: "electric-car",
-    fuelType: "electric",
-    transmission: "automatic",
-    baseDaily: 3600,
-    image: commonsImage("2020 Tata Nexon EV (India) front view.png"),
-    description:
-      "Electric compact SUV with silent drive, low running cost and modern tech.",
-  },
-  {
-    label: "Toyota Innova Hycross",
-    vehicleName: "Toyota Innova Hycross",
-    brand: "Toyota",
-    model: "Innova Hycross",
-    variant: "VX Hybrid",
-    type: "four-wheeler",
-    bodyType: "mpv",
-    fuelType: "hybrid",
-    transmission: "automatic",
-    baseDaily: 4500,
-    image: commonsImage("Toyota Zenix 2.0 V 2023 (2).jpg"),
-    description:
-      "Spacious MPV for family trips, airport transfers and group travel.",
-  },
-  {
-    label: "Mahindra XUV700 AX7",
-    vehicleName: "Mahindra XUV700",
-    brand: "Mahindra",
-    model: "XUV700",
-    variant: "AX7",
-    type: "four-wheeler",
-    bodyType: "suv",
-    fuelType: "diesel",
-    transmission: "automatic",
-    baseDaily: 4800,
-    image: commonsImage("2023 Mahindra XUV700 AX7L front.jpg"),
-    description:
-      "Powerful premium SUV for long-distance trips, large families and touring.",
-  },
-  {
-    label: "Toyota Fortuner 4x2 AT",
     vehicleName: "Toyota Fortuner",
     brand: "Toyota",
     model: "Fortuner",
-    variant: "4x2 AT",
+    variant: "Legender",
     type: "four-wheeler",
-    bodyType: "suv",
+    bodyType: "SUV",
     fuelType: "diesel",
     transmission: "automatic",
-    baseDaily: 6200,
-    image: commonsImage("Toyota Fortuner.jpg"),
-    description:
-      "Luxury SUV for premium rentals, highway touring and executive travel.",
+    priceDaily: 6500,
+    imageUrl:
+      "https://images.pexels.com/photos/210019/pexels-photo-210019.jpeg",
+    specs: {
+      engineCC: 2755,
+      mileageKmpl: 12,
+      seatingCapacity: 7,
+      features: ["Luxury SUV", "7 seater", "Automatic"],
+    },
   },
 ];
 
-const locations = ["Bhubaneswar", "Cuttack", "Puri", "Rourkela", "Sambalpur"];
-
-const colors = [
-  "White",
-  "Black",
-  "Silver",
-  "Grey",
-  "Red",
-  "Blue",
-  "Green",
-  "Yellow",
+const locations = [
+  "Bhubaneswar",
+  "Cuttack",
+  "Puri",
+  "Rourkela",
+  "Sambalpur",
+  "Balasore",
 ];
+
+const colors = ["White", "Black", "Silver", "Grey", "Blue", "Red"];
+
+const normalizeArray = (data, keys = []) => {
+  if (Array.isArray(data)) return data;
+
+  for (const key of keys) {
+    if (Array.isArray(data?.[key])) return data[key];
+  }
+
+  return [];
+};
 
 const randomNumber = (min, max) => {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
 const generateVehicleNumber = () => {
-  const cityCode = randomNumber(1, 30).toString().padStart(2, "0");
+  const district = randomNumber(1, 31).toString().padStart(2, "0");
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const first = letters[randomNumber(0, letters.length - 1)];
   const second = letters[randomNumber(0, letters.length - 1)];
   const number = randomNumber(1000, 9999);
 
-  return `OD-${cityCode}-${first}${second}-${number}`;
+  return `OD${district}${first}${second}${number}`;
 };
 
 const buildRandomVehicleFromPreset = (preset) => {
   const modelYear = randomNumber(2022, 2026);
-  const priceDaily = Math.round(
-    (preset.baseDaily * randomNumber(90, 115)) / 100,
-  );
-  const priceWeekly = Math.round(priceDaily * 6);
-  const priceMonthly = Math.round(priceDaily * 20);
-  const depositAmount = Math.round(priceDaily * randomNumber(3, 6));
+  const daily = preset.priceDaily + randomNumber(-150, 250);
+  const safeDaily = Math.max(daily, 300);
+  const weekly = safeDaily * 6;
+  const monthly = safeDaily * 24;
+  const location = locations[randomNumber(0, locations.length - 1)];
+  const color = colors[randomNumber(0, colors.length - 1)];
 
   return {
-    vehicleName: preset.vehicleName,
-    vehicleNumber: generateVehicleNumber(),
-    brand: preset.brand,
-    model: preset.model,
-    variant: preset.variant,
-    modelYear,
-    type: preset.type,
-    bodyType: preset.bodyType,
-    fuelType: preset.fuelType,
-    transmission: preset.transmission,
-    priceDaily,
-    priceWeekly,
-    priceMonthly,
-    depositAmount,
-    location: locations[randomNumber(0, locations.length - 1)],
-    description: preset.description,
-    images: preset.image,
-    status: "available",
+    form: {
+      vehicleName: preset.vehicleName,
+      vehicleNumber: generateVehicleNumber(),
+      brand: preset.brand,
+      model: preset.model,
+      variant: preset.variant,
+      modelYear,
+      type: preset.type,
+      bodyType: preset.bodyType,
+      fuelType: preset.fuelType,
+      transmission: preset.transmission,
+      priceDaily: safeDaily,
+      priceWeekly: weekly,
+      priceMonthly: monthly,
+      depositAmount: Math.round(safeDaily * 1.5),
+      location,
+      description: `${preset.vehicleName} ${modelYear} model available in ${location}. Clean, verified and ready for rental.`,
+      imageUrl: preset.imageUrl,
+      status: "available",
+    },
     specs: {
-      color: colors[randomNumber(0, colors.length - 1)],
-      seatingCapacity:
-        preset.type === "two-wheeler" ? 2 : preset.bodyType === "mpv" ? 7 : 5,
-      mileageKmpl:
-        preset.fuelType === "electric"
-          ? null
-          : preset.type === "two-wheeler"
-            ? randomNumber(35, 55)
-            : randomNumber(12, 22),
-      batteryRangeKm:
-        preset.fuelType === "electric" ? randomNumber(120, 420) : null,
-      features:
-        preset.type === "two-wheeler"
-          ? ["Self start", "LED headlamp", "Digital console"]
-          : ["Air conditioning", "Bluetooth audio", "Rear parking camera"],
+      ...preset.specs,
+      color,
     },
   };
+};
+
+const formatPrice = (amount) => {
+  return `₹${Number(amount || 0).toLocaleString("en-IN")}`;
 };
 
 function OwnerDashboard() {
   const [vehicles, setVehicles] = useState([]);
   const [bookings, setBookings] = useState([]);
-  const [form, setForm] = useState(emptyVehicleForm);
-  const [presetIndex, setPresetIndex] = useState("");
-  const [generatedSpecs, setGeneratedSpecs] = useState(null);
+  const [formData, setFormData] = useState(emptyVehicleForm);
+  const [selectedPresetIndex, setSelectedPresetIndex] = useState("");
+  const [generatedSpecs, setGeneratedSpecs] = useState({});
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
-  const selectedPreset = useMemo(() => {
-    if (presetIndex === "") return null;
-    return vehiclePresets[Number(presetIndex)];
-  }, [presetIndex]);
-
-  const fetchOwnerData = useCallback(async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
+      setLoading(true);
+      setError("");
+
       const [vehiclesRes, bookingsRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/vehicles/owner/my-vehicles`, authConfig()),
-        axios.get(`${API_BASE_URL}/bookings/owner/bookings`, authConfig()),
+        API.get("/vehicles/owner/my-vehicles"),
+        API.get("/bookings/owner/bookings"),
       ]);
 
       setVehicles(
-        Array.isArray(vehiclesRes.data)
-          ? vehiclesRes.data
-          : vehiclesRes.data.vehicles || [],
+        normalizeArray(vehiclesRes.data, ["vehicles", "data", "items"]),
       );
 
       setBookings(
-        Array.isArray(bookingsRes.data)
-          ? bookingsRes.data
-          : bookingsRes.data.bookings || [],
+        normalizeArray(bookingsRes.data, ["bookings", "data", "items"]),
       );
     } catch (error) {
-      console.error(error);
-      alert(error.response?.data?.message || "Failed to load owner data");
+      setError(
+        error.response?.data?.message ||
+          "Failed to load owner dashboard. Please login again.",
+      );
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useAutoRefresh(fetchOwnerData, 15000);
+  useEffect(() => {
+    fetchDashboardData();
 
-  const applyPreset = (preset = selectedPreset) => {
-    if (!preset) {
-      alert("Please choose a vehicle preset first");
-      return;
-    }
+    const handleFocus = () => {
+      fetchDashboardData();
+    };
 
-    const generatedVehicle = buildRandomVehicleFromPreset(preset);
+    window.addEventListener("focus", handleFocus);
 
-    setForm({
-      vehicleName: generatedVehicle.vehicleName,
-      vehicleNumber: generatedVehicle.vehicleNumber,
-      brand: generatedVehicle.brand,
-      model: generatedVehicle.model,
-      variant: generatedVehicle.variant,
-      modelYear: generatedVehicle.modelYear,
-      type: generatedVehicle.type,
-      bodyType: generatedVehicle.bodyType,
-      fuelType: generatedVehicle.fuelType,
-      transmission: generatedVehicle.transmission,
-      priceDaily: generatedVehicle.priceDaily,
-      priceWeekly: generatedVehicle.priceWeekly,
-      priceMonthly: generatedVehicle.priceMonthly,
-      depositAmount: generatedVehicle.depositAmount,
-      location: generatedVehicle.location,
-      description: generatedVehicle.description,
-      images: generatedVehicle.images,
-      status: "available",
-    });
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [fetchDashboardData]);
 
-    setGeneratedSpecs(generatedVehicle.specs);
-    setEditingId(null);
-  };
+  const stats = useMemo(() => {
+    const pendingBookings = bookings.filter((booking) => {
+      const status = booking.status || booking.bookingStatus;
+      return status === "pending";
+    }).length;
 
-  const generateRandomVehicle = () => {
-    const randomPreset =
-      vehiclePresets[randomNumber(0, vehiclePresets.length - 1)];
+    const approvedBookings = bookings.filter((booking) => {
+      const status = booking.status || booking.bookingStatus;
+      return status === "approved";
+    }).length;
 
-    const index = vehiclePresets.findIndex(
-      (item) => item.label === randomPreset.label,
-    );
+    const availableVehicles = vehicles.filter(
+      (vehicle) => vehicle.status === "available",
+    ).length;
 
-    setPresetIndex(index.toString());
-    applyPreset(randomPreset);
-  };
+    return {
+      totalVehicles: vehicles.length,
+      availableVehicles,
+      pendingBookings,
+      approvedBookings,
+    };
+  }, [vehicles, bookings]);
 
-  const handleChange = (e) => {
-    setForm((prev) => ({
+  const handleInputChange = (event) => {
+    const { name, value } = event.target;
+
+    setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }));
   };
 
+  const applyPreset = (preset) => {
+    const generated = buildRandomVehicleFromPreset(preset);
+    setFormData(generated.form);
+    setGeneratedSpecs(generated.specs);
+  };
+
+  const handleUseSelected = () => {
+    if (selectedPresetIndex === "") {
+      setError("Please choose a vehicle variant first.");
+      return;
+    }
+
+    setError("");
+    applyPreset(vehiclePresets[Number(selectedPresetIndex)]);
+  };
+
+  const handleRandomGenerate = () => {
+    const preset = vehiclePresets[randomNumber(0, vehiclePresets.length - 1)];
+    setSelectedPresetIndex("");
+    setError("");
+    applyPreset(preset);
+  };
+
   const resetForm = () => {
-    setForm(emptyVehicleForm);
-    setGeneratedSpecs(null);
+    setFormData(emptyVehicleForm);
+    setGeneratedSpecs({});
     setEditingId(null);
-    setPresetIndex("");
+    setSelectedPresetIndex("");
   };
 
   const buildPayload = () => {
     return {
-      ...form,
-      modelYear: Number(form.modelYear),
-      priceDaily: Number(form.priceDaily),
-      priceWeekly: Number(form.priceWeekly),
-      priceMonthly: Number(form.priceMonthly),
-      depositAmount: Number(form.depositAmount || 0),
-      images: form.images
-        ? form.images
-            .split(",")
-            .map((img) => img.trim())
-            .filter(Boolean)
-        : [],
+      vehicleName: formData.vehicleName.trim(),
+      vehicleNumber: formData.vehicleNumber.trim().toUpperCase(),
+      brand: formData.brand.trim(),
+      model: formData.model.trim(),
+      variant: formData.variant.trim(),
+      modelYear: Number(formData.modelYear),
+      type: formData.type,
+      bodyType: formData.bodyType.trim(),
+      fuelType: formData.fuelType,
+      transmission: formData.transmission,
+      priceDaily: Number(formData.priceDaily),
+      priceWeekly: Number(formData.priceWeekly),
+      priceMonthly: Number(formData.priceMonthly),
+      depositAmount: Number(formData.depositAmount || 0),
+      location: formData.location.trim(),
+      description: formData.description.trim(),
+      images: formData.imageUrl ? [formData.imageUrl.trim()] : [],
+      status: formData.status,
       specs: generatedSpecs || {},
     };
   };
 
-  const submitVehicle = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
     try {
       setSaving(true);
+      setError("");
+      setMessage("");
 
       const payload = buildPayload();
 
       if (editingId) {
-        await axios.put(
-          `${API_BASE_URL}/vehicles/${editingId}`,
-          payload,
-          authConfig(),
-        );
-
-        alert("Vehicle updated successfully");
+        await API.put(`/vehicles/${editingId}`, payload);
+        setMessage("Vehicle updated successfully.");
       } else {
-        await axios.post(`${API_BASE_URL}/vehicles`, payload, authConfig());
-
-        alert("Vehicle added successfully. Waiting for admin approval.");
+        await API.post("/vehicles", payload);
+        setMessage("Vehicle added successfully. Waiting for admin approval.");
       }
 
       resetForm();
-      triggerDataRefresh();
-      await fetchOwnerData();
+      fetchDashboardData();
     } catch (error) {
-      alert(error.response?.data?.message || "Failed to save vehicle");
+      setError(error.response?.data?.message || "Vehicle save failed.");
     } finally {
       setSaving(false);
     }
   };
 
-  const editVehicle = (vehicle) => {
+  const handleEditVehicle = (vehicle) => {
     setEditingId(vehicle._id);
 
-    setForm({
+    setFormData({
       vehicleName: vehicle.vehicleName || "",
       vehicleNumber: vehicle.vehicleNumber || "",
       brand: vehicle.brand || "",
@@ -514,15 +451,15 @@ function OwnerDashboard() {
       depositAmount: vehicle.depositAmount || "",
       location: vehicle.location || "",
       description: vehicle.description || "",
-      images: vehicle.images?.join(", ") || "",
+      imageUrl: vehicle.images?.[0] || "",
       status: vehicle.status || "available",
     });
 
-    setGeneratedSpecs(vehicle.specs || null);
+    setGeneratedSpecs(vehicle.specs || {});
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const deleteVehicle = async (vehicleId) => {
+  const handleDeleteVehicle = async (id) => {
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this vehicle?",
     );
@@ -530,591 +467,575 @@ function OwnerDashboard() {
     if (!confirmDelete) return;
 
     try {
-      await axios.delete(`${API_BASE_URL}/vehicles/${vehicleId}`, authConfig());
-
-      triggerDataRefresh();
-      await fetchOwnerData();
-      alert("Vehicle deleted successfully");
+      setError("");
+      setMessage("");
+      await API.delete(`/vehicles/${id}`);
+      setMessage("Vehicle deleted successfully.");
+      fetchDashboardData();
     } catch (error) {
-      alert(error.response?.data?.message || "Failed to delete vehicle");
+      setError(error.response?.data?.message || "Vehicle delete failed.");
     }
   };
 
-  const updateVehicleStatus = async (vehicleId, status) => {
+  const handleVehicleStatus = async (id, status) => {
     try {
-      await axios.put(
-        `${API_BASE_URL}/vehicles/${vehicleId}/status`,
-        { status },
-        authConfig(),
-      );
-
-      triggerDataRefresh();
-      await fetchOwnerData();
+      setError("");
+      setMessage("");
+      await API.put(`/vehicles/${id}/status`, { status });
+      setMessage(`Vehicle marked as ${status}.`);
+      fetchDashboardData();
     } catch (error) {
-      alert(error.response?.data?.message || "Failed to update vehicle status");
+      setError(
+        error.response?.data?.message || "Vehicle status update failed.",
+      );
     }
   };
 
-  const approveBooking = async (bookingId) => {
+  const handleApproveBooking = async (id) => {
     try {
-      await axios.put(
-        `${API_BASE_URL}/bookings/${bookingId}/approve`,
-        {},
-        authConfig(),
-      );
-
-      triggerDataRefresh();
-      await fetchOwnerData();
-      alert("Booking approved");
+      setError("");
+      setMessage("");
+      await API.put(`/bookings/${id}/approve`);
+      setMessage("Booking approved successfully.");
+      fetchDashboardData();
     } catch (error) {
-      alert(error.response?.data?.message || "Failed to approve booking");
+      setError(error.response?.data?.message || "Booking approval failed.");
     }
   };
 
-  const rejectBooking = async (bookingId) => {
+  const handleRejectBooking = async (id) => {
     try {
-      await axios.put(
-        `${API_BASE_URL}/bookings/${bookingId}/reject`,
-        {},
-        authConfig(),
-      );
-
-      triggerDataRefresh();
-      await fetchOwnerData();
-      alert("Booking rejected");
+      setError("");
+      setMessage("");
+      await API.put(`/bookings/${id}/reject`);
+      setMessage("Booking rejected successfully.");
+      fetchDashboardData();
     } catch (error) {
-      alert(error.response?.data?.message || "Failed to reject booking");
+      setError(error.response?.data?.message || "Booking rejection failed.");
     }
   };
 
-  const badgeClass = (status) => {
-    if (status === "approved" || status === "available" || status === "paid") {
-      return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    }
-
-    if (status === "pending" || status === "unpaid") {
-      return "bg-amber-50 text-amber-700 border-amber-200";
-    }
-
-    if (
-      status === "rejected" ||
-      status === "maintenance" ||
-      status === "failed"
-    ) {
-      return "bg-red-50 text-red-700 border-red-200";
-    }
-
-    return "bg-slate-50 text-slate-700 border-slate-200";
-  };
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-slate-950 px-4 py-12 text-white">
+        <div className="mx-auto max-w-7xl">
+          <div className="rounded-[2rem] border border-slate-800 bg-slate-900 p-8 text-center">
+            <RefreshCw className="mx-auto mb-3 animate-spin text-blue-300" />
+            <p className="font-bold text-slate-300">
+              Loading owner dashboard...
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
-      <section className="mx-auto max-w-7xl">
-        <div className="mb-8 rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-sm backdrop-blur-xl">
-          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+    <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-6 lg:px-10">
+      <div className="mx-auto max-w-7xl space-y-8">
+        <section className="rounded-[2rem] border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl">
+          <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-400">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-300">
                 Owner Panel
               </p>
-
-              <h1 className="mt-2 text-3xl font-black text-slate-950">
+              <h1 className="mt-3 text-3xl font-black text-white">
                 Owner Dashboard
               </h1>
-
-              <p className="mt-2 text-sm text-slate-600">
-                Choose a vehicle preset, auto-generate realistic details, then
-                add it to your fleet.
+              <p className="mt-2 text-sm text-slate-400">
+                Add vehicles, generate realistic data, and manage bookings.
               </p>
             </div>
 
             <button
-              onClick={fetchOwnerData}
-              className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-800 transition hover:bg-slate-100"
+              onClick={fetchDashboardData}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-800 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-700"
             >
+              <RefreshCw size={17} />
               Refresh
             </button>
           </div>
-        </div>
+        </section>
 
-        {loading ? (
-          <div className="rounded-[2rem] border border-white/70 bg-white/80 p-10 text-center text-slate-500 shadow-sm">
-            Loading owner dashboard...
-          </div>
-        ) : (
-          <>
-            <div className="mb-8 rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur-xl">
-              <h2 className="text-xl font-black text-slate-950">
-                Quick Vehicle Generator
-              </h2>
+        {(error || message) && (
+          <section
+            className={`rounded-2xl border px-5 py-4 text-sm font-bold ${
+              error
+                ? "border-red-900/60 bg-red-950/50 text-red-300"
+                : "border-emerald-900/60 bg-emerald-950/50 text-emerald-300"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {error ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
+              {error || message}
+            </div>
+          </section>
+        )}
 
-              <p className="mt-2 text-sm text-slate-500">
-                Select any vehicle variant or generate a random vehicle. Details
-                like year, number, price, location and real model image will
-                auto-fill.
-              </p>
-
-              <div className="mt-5 grid gap-4 md:grid-cols-[1fr_auto_auto]">
-                <select
-                  value={presetIndex}
-                  onChange={(e) => setPresetIndex(e.target.value)}
-                  className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none"
-                >
-                  <option value="">Choose vehicle variant</option>
-                  {vehiclePresets.map((preset, index) => (
-                    <option key={preset.label} value={index}>
-                      {preset.label}
-                    </option>
-                  ))}
-                </select>
-
-                <button
-                  type="button"
-                  onClick={() => applyPreset()}
-                  className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
-                >
-                  Use Selected
-                </button>
-
-                <button
-                  type="button"
-                  onClick={generateRandomVehicle}
-                  className="rounded-2xl border border-purple-200 bg-purple-50 px-5 py-3 text-sm font-bold text-purple-700 transition hover:bg-purple-100"
-                >
-                  Generate Random
-                </button>
+        <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            {
+              label: "Total Vehicles",
+              value: stats.totalVehicles,
+              icon: <Car size={22} />,
+            },
+            {
+              label: "Available",
+              value: stats.availableVehicles,
+              icon: <CheckCircle2 size={22} />,
+            },
+            {
+              label: "Pending Bookings",
+              value: stats.pendingBookings,
+              icon: <CalendarCheck size={22} />,
+            },
+            {
+              label: "Approved Bookings",
+              value: stats.approvedBookings,
+              icon: <IndianRupee size={22} />,
+            },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className="rounded-[1.5rem] border border-slate-800 bg-slate-900 p-5"
+            >
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white">
+                {item.icon}
               </div>
+              <p className="text-3xl font-black text-white">{item.value}</p>
+              <p className="mt-1 text-sm font-semibold text-slate-400">
+                {item.label}
+              </p>
+            </div>
+          ))}
+        </section>
 
-              {form.vehicleName && (
-                <div className="mt-5 grid gap-4 rounded-3xl bg-slate-50 p-4 md:grid-cols-[140px_1fr]">
+        <section className="rounded-[2rem] border border-slate-800 bg-slate-900/80 p-6 shadow-xl shadow-black/20">
+          <div className="mb-5">
+            <h2 className="text-2xl font-black text-white">
+              Quick Vehicle Generator
+            </h2>
+            <p className="mt-2 text-sm text-slate-400">
+              Choose any vehicle variant or generate a random vehicle. Details
+              like year, number, price, location and image will auto-fill.
+            </p>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[1fr_auto_auto]">
+            <select
+              value={selectedPresetIndex}
+              onChange={(event) => setSelectedPresetIndex(event.target.value)}
+              className="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15"
+            >
+              <option value="">Choose vehicle variant</option>
+              {vehiclePresets.map((preset, index) => (
+                <option key={preset.vehicleName} value={index}>
+                  {preset.vehicleName}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={handleUseSelected}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white transition hover:bg-slate-800"
+            >
+              <Plus size={17} />
+              Use Selected
+            </button>
+
+            <button
+              onClick={handleRandomGenerate}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-4 text-sm font-black text-white transition hover:from-blue-500 hover:to-purple-500"
+            >
+              <Wand2 size={17} />
+              Generate Random
+            </button>
+          </div>
+        </section>
+
+        <section className="rounded-[2rem] border border-slate-800 bg-slate-900/80 p-6 shadow-xl shadow-black/20">
+          <div className="mb-6 flex flex-col justify-between gap-3 md:flex-row md:items-center">
+            <div>
+              <h2 className="text-2xl font-black text-white">
+                {editingId ? "Edit Vehicle" : "Add Vehicle"}
+              </h2>
+              <p className="mt-2 text-sm text-slate-400">
+                Fill details manually or use the generator above.
+              </p>
+            </div>
+
+            {editingId && (
+              <button
+                onClick={resetForm}
+                className="rounded-2xl border border-slate-700 px-5 py-3 text-sm font-black text-slate-200 transition hover:bg-slate-800"
+              >
+                Cancel Edit
+              </button>
+            )}
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <input
+                name="vehicleName"
+                value={formData.vehicleName}
+                onChange={handleInputChange}
+                placeholder="Vehicle name"
+                required
+                className="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none placeholder:text-slate-400 focus:border-blue-500"
+              />
+
+              <input
+                name="vehicleNumber"
+                value={formData.vehicleNumber}
+                onChange={handleInputChange}
+                placeholder="Vehicle number"
+                required
+                className="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold uppercase text-white outline-none placeholder:text-slate-400 focus:border-blue-500"
+              />
+
+              <input
+                name="brand"
+                value={formData.brand}
+                onChange={handleInputChange}
+                placeholder="Brand"
+                required
+                className="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none placeholder:text-slate-400 focus:border-blue-500"
+              />
+
+              <input
+                name="model"
+                value={formData.model}
+                onChange={handleInputChange}
+                placeholder="Model"
+                required
+                className="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none placeholder:text-slate-400 focus:border-blue-500"
+              />
+
+              <input
+                name="variant"
+                value={formData.variant}
+                onChange={handleInputChange}
+                placeholder="Variant"
+                className="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none placeholder:text-slate-400 focus:border-blue-500"
+              />
+
+              <input
+                type="number"
+                name="modelYear"
+                value={formData.modelYear}
+                onChange={handleInputChange}
+                placeholder="Model year"
+                required
+                className="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none placeholder:text-slate-400 focus:border-blue-500"
+              />
+
+              <select
+                name="type"
+                value={formData.type}
+                onChange={handleInputChange}
+                className="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none focus:border-blue-500"
+              >
+                <option value="two-wheeler">Two Wheeler</option>
+                <option value="four-wheeler">Four Wheeler</option>
+              </select>
+
+              <input
+                name="bodyType"
+                value={formData.bodyType}
+                onChange={handleInputChange}
+                placeholder="Body type"
+                className="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none placeholder:text-slate-400 focus:border-blue-500"
+              />
+
+              <select
+                name="fuelType"
+                value={formData.fuelType}
+                onChange={handleInputChange}
+                className="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none focus:border-blue-500"
+              >
+                <option value="petrol">Petrol</option>
+                <option value="diesel">Diesel</option>
+                <option value="electric">Electric</option>
+                <option value="cng">CNG</option>
+                <option value="hybrid">Hybrid</option>
+              </select>
+
+              <select
+                name="transmission"
+                value={formData.transmission}
+                onChange={handleInputChange}
+                className="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none focus:border-blue-500"
+              >
+                <option value="manual">Manual</option>
+                <option value="automatic">Automatic</option>
+              </select>
+
+              <input
+                name="location"
+                value={formData.location}
+                onChange={handleInputChange}
+                placeholder="Location"
+                required
+                className="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none placeholder:text-slate-400 focus:border-blue-500"
+              />
+
+              <input
+                type="number"
+                name="depositAmount"
+                value={formData.depositAmount}
+                onChange={handleInputChange}
+                placeholder="Deposit amount"
+                className="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none placeholder:text-slate-400 focus:border-blue-500"
+              />
+
+              <input
+                type="number"
+                name="priceDaily"
+                value={formData.priceDaily}
+                onChange={handleInputChange}
+                placeholder="Daily price"
+                required
+                className="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none placeholder:text-slate-400 focus:border-blue-500"
+              />
+
+              <input
+                type="number"
+                name="priceWeekly"
+                value={formData.priceWeekly}
+                onChange={handleInputChange}
+                placeholder="Weekly price"
+                required
+                className="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none placeholder:text-slate-400 focus:border-blue-500"
+              />
+
+              <input
+                type="number"
+                name="priceMonthly"
+                value={formData.priceMonthly}
+                onChange={handleInputChange}
+                placeholder="Monthly price"
+                required
+                className="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none placeholder:text-slate-400 focus:border-blue-500"
+              />
+
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleInputChange}
+                className="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none focus:border-blue-500"
+              >
+                <option value="available">Available</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="inactive">Inactive</option>
+              </select>
+
+              <input
+                name="imageUrl"
+                value={formData.imageUrl}
+                onChange={handleInputChange}
+                placeholder="Image URL"
+                className="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none placeholder:text-slate-400 focus:border-blue-500 lg:col-span-2"
+              />
+            </div>
+
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              placeholder="Vehicle description"
+              rows="4"
+              className="w-full rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none placeholder:text-slate-400 focus:border-blue-500"
+            />
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 text-sm font-black text-white shadow-lg shadow-blue-950/40 transition hover:from-blue-500 hover:to-purple-500 disabled:cursor-not-allowed disabled:opacity-60 md:w-auto"
+            >
+              <Plus size={18} />
+              {saving
+                ? "Saving..."
+                : editingId
+                  ? "Update Vehicle"
+                  : "Add Vehicle"}
+            </button>
+          </form>
+        </section>
+
+        <section className="rounded-[2rem] border border-slate-800 bg-slate-900/80 p-6 shadow-xl shadow-black/20">
+          <h2 className="mb-5 text-2xl font-black text-white">My Vehicles</h2>
+
+          {vehicles.length === 0 ? (
+            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6 text-center text-slate-400">
+              No vehicles found. Add your first vehicle above.
+            </div>
+          ) : (
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {vehicles.map((vehicle) => (
+                <div
+                  key={vehicle._id}
+                  className="overflow-hidden rounded-[1.5rem] border border-slate-800 bg-slate-950"
+                >
                   <img
                     src={
-                      form.images || "https://placehold.co/500x300?text=Vehicle"
+                      vehicle.images?.[0] ||
+                      "https://images.pexels.com/photos/170811/pexels-photo-170811.jpeg"
                     }
-                    alt={form.vehicleName}
-                    className="h-28 w-full rounded-2xl object-cover"
+                    alt={vehicle.vehicleName}
+                    className="h-48 w-full object-cover"
                   />
 
-                  <div>
-                    <h3 className="text-lg font-black text-slate-950">
-                      {form.vehicleName} {form.variant && `(${form.variant})`}
-                    </h3>
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-black text-white">
+                          {vehicle.vehicleName}
+                        </h3>
+                        <p className="mt-1 text-sm text-slate-400">
+                          {vehicle.brand} {vehicle.model}
+                        </p>
+                      </div>
 
-                    <p className="mt-1 text-sm text-slate-500">
-                      {form.brand} • {form.model} • {form.modelYear} •{" "}
-                      {form.location}
-                    </p>
-
-                    <p className="mt-2 text-sm text-slate-600">
-                      {form.description}
-                    </p>
-
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-700">
-                        ₹{form.priceDaily}/day
+                      <span className="rounded-full bg-blue-950/50 px-3 py-1 text-xs font-black capitalize text-blue-300">
+                        {vehicle.approvalStatus || "pending"}
                       </span>
+                    </div>
 
-                      <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-700">
-                        {form.fuelType}
-                      </span>
+                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                      <div className="rounded-2xl bg-slate-900 p-3">
+                        <p className="text-slate-400">Daily</p>
+                        <p className="font-black text-white">
+                          {formatPrice(vehicle.priceDaily)}
+                        </p>
+                      </div>
 
-                      <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-700">
-                        {form.transmission}
-                      </span>
+                      <div className="rounded-2xl bg-slate-900 p-3">
+                        <p className="text-slate-400">Status</p>
+                        <p className="font-black capitalize text-white">
+                          {vehicle.status}
+                        </p>
+                      </div>
+                    </div>
 
-                      <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-700">
-                        {form.vehicleNumber}
-                      </span>
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleEditVehicle(vehicle)}
+                        className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-xs font-black text-white hover:bg-slate-700"
+                      >
+                        <Pencil size={14} />
+                        Edit
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          handleVehicleStatus(
+                            vehicle._id,
+                            vehicle.status === "available"
+                              ? "inactive"
+                              : "available",
+                          )
+                        }
+                        className="inline-flex items-center gap-2 rounded-xl bg-blue-950/60 px-4 py-2 text-xs font-black text-blue-300 hover:bg-blue-950"
+                      >
+                        <RefreshCw size={14} />
+                        Toggle
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteVehicle(vehicle._id)}
+                        className="inline-flex items-center gap-2 rounded-xl bg-red-950/60 px-4 py-2 text-xs font-black text-red-300 hover:bg-red-950"
+                      >
+                        <Trash2 size={14} />
+                        Delete
+                      </button>
                     </div>
                   </div>
                 </div>
-              )}
+              ))}
             </div>
+          )}
+        </section>
 
-            <form
-              onSubmit={submitVehicle}
-              className="mb-8 rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur-xl"
-            >
-              <h2 className="text-xl font-black text-slate-950">
-                {editingId ? "Edit Vehicle" : "Add Vehicle"}
-              </h2>
+        <section className="rounded-[2rem] border border-slate-800 bg-slate-900/80 p-6 shadow-xl shadow-black/20">
+          <h2 className="mb-5 text-2xl font-black text-white">
+            Booking Requests
+          </h2>
 
-              <div className="mt-5 grid gap-4 md:grid-cols-3">
-                <input
-                  name="vehicleName"
-                  value={form.vehicleName}
-                  onChange={handleChange}
-                  placeholder="Vehicle name"
-                  required
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none"
-                />
+          {bookings.length === 0 ? (
+            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6 text-center text-slate-400">
+              No booking requests found.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {bookings.map((booking) => {
+                const status = booking.status || booking.bookingStatus;
+                const paymentStatus = booking.paymentStatus || "unpaid";
+                const vehicle = booking.vehicle || {};
+                const customer = booking.customer || booking.user || {};
 
-                <input
-                  name="vehicleNumber"
-                  value={form.vehicleNumber}
-                  onChange={handleChange}
-                  placeholder="Vehicle number"
-                  required
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm uppercase outline-none"
-                />
+                return (
+                  <div
+                    key={booking._id}
+                    className="rounded-[1.5rem] border border-slate-800 bg-slate-950 p-5"
+                  >
+                    <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+                      <div>
+                        <h3 className="text-lg font-black text-white">
+                          {vehicle.vehicleName || "Vehicle"}
+                        </h3>
 
-                <input
-                  name="brand"
-                  value={form.brand}
-                  onChange={handleChange}
-                  placeholder="Brand"
-                  required
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none"
-                />
+                        <p className="mt-1 text-sm text-slate-400">
+                          Customer: {customer.name || "Customer"} ·{" "}
+                          {customer.email || "No email"}
+                        </p>
 
-                <input
-                  name="model"
-                  value={form.model}
-                  onChange={handleChange}
-                  placeholder="Model"
-                  required
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none"
-                />
-
-                <input
-                  name="variant"
-                  value={form.variant}
-                  onChange={handleChange}
-                  placeholder="Variant"
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none"
-                />
-
-                <input
-                  name="modelYear"
-                  type="number"
-                  value={form.modelYear}
-                  onChange={handleChange}
-                  placeholder="Model year"
-                  required
-                  min="2022"
-                  max="2026"
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none"
-                />
-
-                <select
-                  name="type"
-                  value={form.type}
-                  onChange={handleChange}
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none"
-                >
-                  <option value="two-wheeler">Two Wheeler</option>
-                  <option value="four-wheeler">Four Wheeler</option>
-                </select>
-
-                <input
-                  name="bodyType"
-                  value={form.bodyType}
-                  onChange={handleChange}
-                  placeholder="Body type"
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none"
-                />
-
-                <select
-                  name="fuelType"
-                  value={form.fuelType}
-                  onChange={handleChange}
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none"
-                >
-                  <option value="petrol">Petrol</option>
-                  <option value="diesel">Diesel</option>
-                  <option value="electric">Electric</option>
-                  <option value="cng">CNG</option>
-                  <option value="hybrid">Hybrid</option>
-                </select>
-
-                <select
-                  name="transmission"
-                  value={form.transmission}
-                  onChange={handleChange}
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none"
-                >
-                  <option value="manual">Manual</option>
-                  <option value="automatic">Automatic</option>
-                </select>
-
-                <input
-                  name="location"
-                  value={form.location}
-                  onChange={handleChange}
-                  placeholder="Location"
-                  required
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none"
-                />
-
-                <input
-                  name="depositAmount"
-                  type="number"
-                  value={form.depositAmount}
-                  onChange={handleChange}
-                  placeholder="Deposit amount"
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none"
-                />
-
-                <input
-                  name="priceDaily"
-                  type="number"
-                  value={form.priceDaily}
-                  onChange={handleChange}
-                  placeholder="Daily price"
-                  required
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none"
-                />
-
-                <input
-                  name="priceWeekly"
-                  type="number"
-                  value={form.priceWeekly}
-                  onChange={handleChange}
-                  placeholder="Weekly price"
-                  required
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none"
-                />
-
-                <input
-                  name="priceMonthly"
-                  type="number"
-                  value={form.priceMonthly}
-                  onChange={handleChange}
-                  placeholder="Monthly price"
-                  required
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none"
-                />
-
-                <input
-                  name="images"
-                  value={form.images}
-                  onChange={handleChange}
-                  placeholder="Image URL"
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none md:col-span-3"
-                />
-
-                <textarea
-                  name="description"
-                  value={form.description}
-                  onChange={handleChange}
-                  placeholder="Vehicle description"
-                  rows="3"
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none md:col-span-3"
-                />
-              </div>
-
-              <div className="mt-5 flex flex-wrap gap-3">
-                <button
-                  disabled={saving}
-                  className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-60"
-                >
-                  {saving
-                    ? "Saving..."
-                    : editingId
-                      ? "Update Vehicle"
-                      : "Add Vehicle"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-800 transition hover:bg-slate-100"
-                >
-                  Clear Form
-                </button>
-              </div>
-            </form>
-
-            <div className="grid gap-8 xl:grid-cols-2">
-              <section className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur-xl">
-                <h2 className="text-xl font-black text-slate-950">
-                  My Vehicles
-                </h2>
-
-                <div className="mt-5 space-y-4">
-                  {vehicles.length === 0 ? (
-                    <p className="text-sm text-slate-500">No vehicles added.</p>
-                  ) : (
-                    vehicles.map((vehicle) => (
-                      <div
-                        key={vehicle._id}
-                        className="rounded-3xl border border-slate-100 bg-slate-50 p-4"
-                      >
-                        <div className="flex justify-between gap-3">
-                          <div>
-                            <h3 className="font-black text-slate-950">
-                              {vehicle.vehicleName}
-                            </h3>
-
-                            <p className="text-sm text-slate-500">
-                              {vehicle.vehicleNumber} • {vehicle.brand}{" "}
-                              {vehicle.model}
-                            </p>
-                          </div>
-
-                          <span
-                            className={`h-fit rounded-full border px-3 py-1 text-xs font-bold capitalize ${badgeClass(
-                              vehicle.approvalStatus,
-                            )}`}
-                          >
-                            {vehicle.approvalStatus}
-                          </span>
-                        </div>
-
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                          {getVehicleImage(vehicle) && (
-                            <img
-                              src={getVehicleImage(vehicle)}
-                              alt={vehicle.vehicleName}
-                              className="h-16 w-24 rounded-2xl object-cover"
-                            />
-                          )}
-
-                          <span
-                            className={`rounded-full border px-3 py-1 text-xs font-bold capitalize ${badgeClass(
-                              vehicle.status,
-                            )}`}
-                          >
-                            {vehicle.status}
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <span className="rounded-full bg-blue-950/50 px-3 py-1 text-xs font-black capitalize text-blue-300">
+                            Booking: {status}
                           </span>
 
-                          <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-700">
-                            ₹{vehicle.priceDaily}/day
+                          <span className="rounded-full bg-amber-950/50 px-3 py-1 text-xs font-black capitalize text-amber-300">
+                            Payment: {paymentStatus}
                           </span>
 
-                          {vehicle.modelYear && (
-                            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-700">
-                              {vehicle.modelYear}
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <button
-                            onClick={() => editVehicle(vehicle)}
-                            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-800 hover:bg-slate-100"
-                          >
-                            Edit
-                          </button>
-
-                          <button
-                            onClick={() =>
-                              updateVehicleStatus(
-                                vehicle._id,
-                                vehicle.status === "maintenance"
-                                  ? "available"
-                                  : "maintenance",
-                              )
-                            }
-                            className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-bold text-amber-700 hover:bg-amber-100"
-                          >
-                            {vehicle.status === "maintenance"
-                              ? "Set Available"
-                              : "Set Maintenance"}
-                          </button>
-
-                          <button
-                            onClick={() => deleteVehicle(vehicle._id)}
-                            className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-bold text-red-700 hover:bg-red-100"
-                          >
-                            Delete
-                          </button>
+                          <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-black text-slate-300">
+                            {formatPrice(
+                              booking.totalPrice ||
+                                booking.totalAmount ||
+                                booking.amount,
+                            )}
+                          </span>
                         </div>
                       </div>
-                    ))
-                  )}
-                </div>
-              </section>
 
-              <section className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur-xl">
-                <h2 className="text-xl font-black text-slate-950">
-                  Booking Requests
-                </h2>
-
-                <div className="mt-5 space-y-4">
-                  {bookings.length === 0 ? (
-                    <p className="text-sm text-slate-500">
-                      No booking requests.
-                    </p>
-                  ) : (
-                    bookings.map((booking) => (
-                      <div
-                        key={booking._id}
-                        className="rounded-3xl border border-slate-100 bg-slate-50 p-4"
-                      >
-                        <div className="flex justify-between gap-3">
-                          <div>
-                            <h3 className="font-black text-slate-950">
-                              {booking.vehicle?.vehicleName || "Vehicle"}
-                            </h3>
-
-                            <p className="text-sm text-slate-500">
-                              Customer: {booking.user?.name || "N/A"}
-                            </p>
-                          </div>
-
-                          <span
-                            className={`h-fit rounded-full border px-3 py-1 text-xs font-bold capitalize ${badgeClass(
-                              booking.status,
-                            )}`}
+                      {status === "pending" && (
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => handleApproveBooking(booking._id)}
+                            className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white hover:bg-emerald-500"
                           >
-                            {booking.status}
-                          </span>
+                            <CheckCircle2 size={17} />
+                            Approve
+                          </button>
+
+                          <button
+                            onClick={() => handleRejectBooking(booking._id)}
+                            className="inline-flex items-center gap-2 rounded-2xl bg-red-600 px-5 py-3 text-sm font-black text-white hover:bg-red-500"
+                          >
+                            <XCircle size={17} />
+                            Reject
+                          </button>
                         </div>
-
-                        <div className="mt-3 grid gap-2 text-sm text-slate-600 md:grid-cols-2">
-                          <p>
-                            Start:{" "}
-                            <b>
-                              {new Date(booking.startDate).toLocaleDateString()}
-                            </b>
-                          </p>
-
-                          <p>
-                            End:{" "}
-                            <b>
-                              {new Date(booking.endDate).toLocaleDateString()}
-                            </b>
-                          </p>
-
-                          <p>
-                            Plan: <b>{booking.rentalPlan}</b>
-                          </p>
-
-                          <p>
-                            Amount: <b>₹{booking.totalAmount}</b>
-                          </p>
-
-                          <p>
-                            Payment: <b>{booking.paymentStatus || "unpaid"}</b>
-                          </p>
-                        </div>
-
-                        {booking.status === "pending" && (
-                          <div className="mt-4 flex gap-2">
-                            <button
-                              onClick={() => approveBooking(booking._id)}
-                              className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700"
-                            >
-                              Approve
-                            </button>
-
-                            <button
-                              onClick={() => rejectBooking(booking._id)}
-                              className="rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </section>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </>
-        )}
-      </section>
+          )}
+        </section>
+      </div>
     </main>
   );
 }

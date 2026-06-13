@@ -1,33 +1,41 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
-function getStoredUser() {
-  try {
-    return JSON.parse(localStorage.getItem("user"));
-  } catch {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    return null;
-  }
-}
+function ProtectedRoute({ children, allowedRoles = [] }) {
+  const location = useLocation();
 
-function ProtectedRoute({ children, allowedRoles }) {
   const token = localStorage.getItem("token");
-  const user = getStoredUser();
+  const savedUser = localStorage.getItem("user");
+
+  let user = null;
+
+  try {
+    user = savedUser ? JSON.parse(savedUser) : null;
+  } catch {
+    user = null;
+  }
 
   if (!token || !user) {
+    if (location.pathname.includes("owner-dashboard")) {
+      return <Navigate to="/owner-login" replace />;
+    }
+
+    if (location.pathname.includes("admin-dashboard")) {
+      return <Navigate to="/admin-login" replace />;
+    }
+
     return <Navigate to="/customer-login" replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
     if (user.role === "owner") {
       return <Navigate to="/owner-dashboard" replace />;
     }
 
-    if (user.role === "customer") {
-      return <Navigate to="/vehicles" replace />;
+    if (user.role === "admin") {
+      return <Navigate to="/admin-dashboard" replace />;
     }
 
-    return <Navigate to="/" replace />;
+    return <Navigate to="/vehicles" replace />;
   }
 
   return children;

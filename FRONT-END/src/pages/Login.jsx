@@ -1,13 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { LogIn, Building2 } from "lucide-react";
-import axios from "axios";
+import { Building2, Car, Lock, Mail } from "lucide-react";
+import API from "../api/axios";
 
-const API_BASE_URL = "https://rento-backend-gmlw.onrender.com/api";
-
-function Login({ expectedRole }) {
+function Login({ expectedRole = "customer" }) {
   const navigate = useNavigate();
-  const isOwner = expectedRole === "owner";
 
   const [formData, setFormData] = useState({
     email: "",
@@ -17,144 +14,164 @@ function Login({ expectedRole }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-
-    if (savedUser) {
-      const user = JSON.parse(savedUser);
-
-      if (user.role === "customer") {
-        navigate("/vehicles");
-      } else if (user.role === "owner") {
-        navigate("/owner-dashboard");
-      } else if (user.role === "admin") {
-        navigate("/admin-dashboard");
-      }
-    }
-  }, [navigate]);
-
-  const changeHandler = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const roleLabels = {
+    customer: "Customer",
+    owner: "Owner",
   };
 
-  const submitHandler = async (e) => {
-    e.preventDefault();
-    setError("");
+  const roleRedirects = {
+    customer: "/vehicles",
+    owner: "/owner-dashboard",
+    admin: "/admin-dashboard",
+  };
+
+  const isOwner = expectedRole === "owner";
+
+  const handleChange = (event) => {
+    setFormData((prev) => ({
+      ...prev,
+      [event.target.name]: event.target.value,
+    }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
     try {
       setLoading(true);
+      setError("");
 
       localStorage.removeItem("token");
       localStorage.removeItem("user");
 
-      const res = await axios.post(`${API_BASE_URL}/auth/login`, formData);
-      const loggedInUser = res.data.user;
+      const res = await API.post("/auth/login", {
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
+      });
 
-      if (loggedInUser.role !== expectedRole) {
-        if (loggedInUser.role === "owner") {
-          setError("This is an owner account. Please login from Staff Portal.");
-        } else if (loggedInUser.role === "admin") {
-          setError("This is an admin account. Please login from Staff Portal.");
-        } else {
-          setError("This is a customer account. Please use Customer Login.");
-        }
+      const token = res.data?.token;
+      const user = res.data?.user;
 
+      if (!token || !user) {
+        setError("Login failed. Token or user missing from server response.");
         return;
       }
 
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("user", JSON.stringify(loggedInUser));
-
-      if (loggedInUser.role === "owner") {
-        navigate("/owner-dashboard");
-      } else {
-        navigate("/vehicles");
+      if (expectedRole && user.role !== expectedRole) {
+        setError(
+          `This account is ${user.role}. Please login as ${expectedRole}.`,
+        );
+        return;
       }
 
-      window.location.reload();
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+
+      window.dispatchEvent(new Event("rento-auth-change"));
+
+      navigate(roleRedirects[user.role] || "/", { replace: true });
     } catch (error) {
-      setError(error.response?.data?.message || "Login failed");
+      setError(error.response?.data?.message || "Invalid email or password");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="mx-auto flex min-h-[80vh] max-w-7xl items-center justify-center px-4">
-      <div className="glass w-full max-w-md rounded-[2rem] p-7">
-        <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-white">
-          {isOwner ? <Building2 /> : <LogIn />}
-        </div>
+    <main className="min-h-screen bg-slate-950 px-4 py-16 text-white">
+      <div className="mx-auto flex min-h-[70vh] max-w-7xl items-center justify-center">
+        <div className="w-full max-w-md rounded-[2rem] border border-slate-800 bg-slate-900/80 p-8 shadow-2xl shadow-black/30 backdrop-blur-xl">
+          <div className="mb-7">
+            <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-950/40">
+              {isOwner ? <Building2 size={26} /> : <Car size={26} />}
+            </div>
 
-        <h2 className="text-3xl font-black text-slate-950">
-          {isOwner ? "Owner Login" : "Customer Login"}
-        </h2>
+            <h1 className="text-3xl font-black text-white">
+              {roleLabels[expectedRole] || "User"} Login
+            </h1>
 
-        <p className="mt-2 text-slate-500">
-          {isOwner
-            ? "Login as rental owner to manage vehicles and bookings."
-            : "Login as customer to browse and book vehicles."}
-        </p>
-
-        {error && (
-          <div className="mt-5 rounded-2xl bg-red-50 p-4 text-sm font-medium text-red-700">
-            {error}
+            <p className="mt-2 text-sm leading-6 text-slate-300">
+              {isOwner
+                ? "Login as rental owner to manage vehicles and bookings."
+                : "Login to browse vehicles, book rentals and track your trips."}
+            </p>
           </div>
-        )}
 
-        <form onSubmit={submitHandler} className="mt-6 space-y-4">
-          <input
-            className="input-style"
-            type="email"
-            name="email"
-            placeholder="Email Address"
-            value={formData.email}
-            onChange={changeHandler}
-            required
-          />
-
-          <input
-            className="input-style"
-            type="password"
-            name="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={changeHandler}
-            required
-          />
-
-          <button
-            className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
-            type="submit"
-            disabled={loading}
-          >
-            {loading
-              ? "Logging in..."
-              : isOwner
-                ? "Login as Owner"
-                : "Login as Customer"}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center text-sm text-slate-500">
-          {isOwner ? (
-            <p>
-              Need owner account?{" "}
-              <Link to="/staff" className="font-bold text-blue-700">
-                Go to Staff Portal
-              </Link>
-            </p>
-          ) : (
-            <p>
-              New customer?{" "}
-              <Link to="/customer-register" className="font-bold text-blue-700">
-                Create Customer Account
-              </Link>
-            </p>
+          {error && (
+            <div className="mb-5 rounded-2xl border border-red-900/60 bg-red-950/50 px-4 py-3 text-sm font-bold text-red-300">
+              {error}
+            </div>
           )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <label className="block">
+              <span className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                <Mail size={14} />
+                Email
+              </span>
+
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Enter email"
+                required
+                className="w-full rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                <Lock size={14} />
+                Password
+              </span>
+
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Enter password"
+                required
+                className="w-full rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15"
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-4 text-sm font-black text-white shadow-lg shadow-blue-950/40 transition hover:from-blue-500 hover:to-purple-500 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading
+                ? "Logging in..."
+                : `Login as ${roleLabels[expectedRole] || "User"}`}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center text-sm text-slate-300">
+            {isOwner ? (
+              <>
+                Need owner account?{" "}
+                <Link to="/staff" className="font-black text-blue-300">
+                  Go to Staff Portal
+                </Link>
+              </>
+            ) : (
+              <>
+                New customer?{" "}
+                <Link
+                  to="/customer-register"
+                  className="font-black text-blue-300"
+                >
+                  Create account
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 
