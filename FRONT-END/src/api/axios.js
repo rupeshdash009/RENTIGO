@@ -1,7 +1,10 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api",
+  baseURL:
+    import.meta.env.VITE_API_BASE_URL ||
+    "https://rento-backend-gmlw.onrender.com/api",
+  timeout: 20000,
 });
 
 API.interceptors.request.use(
@@ -14,27 +17,33 @@ API.interceptors.request.use(
 
     return config;
   },
-  (error) => Promise.reject(error),
+  (error) => Promise.reject(error)
 );
 
 API.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+
+    if (status === 401) {
       const currentPath = window.location.pathname;
 
-      if (
-        currentPath !== "/customer-login" &&
-        currentPath !== "/owner-login" &&
-        currentPath !== "/admin-login"
-      ) {
+      const authPages = [
+        "/customer-login",
+        "/owner-login",
+        "/admin-login",
+        "/customer-register",
+        "/owner-register",
+      ];
+
+      if (!authPages.includes(currentPath)) {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
       }
     }
 
     return Promise.reject(error);
-  },
+  }
 );
 
 export default API;

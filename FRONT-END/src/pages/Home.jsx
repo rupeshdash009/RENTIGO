@@ -1,11 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import {
-  motion,
-  useInView,
-  useAnimation,
-  AnimatePresence,
-} from "framer-motion";
+import { motion, useAnimation, useInView } from "framer-motion";
 import {
   ArrowRight,
   CalendarCheck,
@@ -20,47 +15,63 @@ import {
   Zap,
   ChevronDown,
   Quote,
+  Bike,
+  Sparkles,
 } from "lucide-react";
 
-/* ─── Scroll-reveal hook (kept original but enhanced with framer) ─── */
 function useReveal() {
   const ref = useRef(null);
   const [visible, setVisible] = useState(false);
+
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
+    const element = ref.current;
+
+    if (!element) return;
+
+    const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           setVisible(true);
-          obs.disconnect();
+          observer.disconnect();
         }
       },
-      { threshold: 0.12 },
+      { threshold: 0.15 }
     );
-    obs.observe(el);
-    return () => obs.disconnect();
+
+    observer.observe(element);
+
+    return () => observer.disconnect();
   }, []);
+
   return [ref, visible];
 }
 
-/* ─── Animated counter ─── */
-function Counter({ target, suffix = "", duration = 1800 }) {
+function Counter({ target, suffix = "", duration = 1400 }) {
   const [count, setCount] = useState(0);
   const [ref, visible] = useReveal();
+
   useEffect(() => {
     if (!visible) return;
+
     let start = 0;
-    const step = Math.ceil(target / (duration / 16));
+    const frameTime = 16;
+    const totalFrames = Math.round(duration / frameTime);
+    const increment = target / totalFrames;
+
     const timer = setInterval(() => {
-      start += step;
+      start += increment;
+
       if (start >= target) {
         setCount(target);
         clearInterval(timer);
-      } else setCount(start);
-    }, 16);
+      } else {
+        setCount(Math.floor(start));
+      }
+    }, frameTime);
+
     return () => clearInterval(timer);
   }, [visible, target, duration]);
+
   return (
     <span ref={ref}>
       {count.toLocaleString()}
@@ -69,16 +80,17 @@ function Counter({ target, suffix = "", duration = 1800 }) {
   );
 }
 
-/* ─── Section wrapper using Framer Motion ─── */
 function Section({ children, className = "", id = "" }) {
   const controls = useAnimation();
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, threshold: 0.12 });
+  const inView = useInView(ref, { once: true, amount: 0.12 });
+
   useEffect(() => {
     if (inView) {
       controls.start("visible");
     }
   }, [controls, inView]);
+
   return (
     <motion.section
       id={id}
@@ -86,11 +98,11 @@ function Section({ children, className = "", id = "" }) {
       initial="hidden"
       animate={controls}
       variants={{
-        hidden: { opacity: 0, y: 40 },
+        hidden: { opacity: 0, y: 32 },
         visible: {
           opacity: 1,
           y: 0,
-          transition: { duration: 0.7, ease: "easeOut" },
+          transition: { duration: 0.6, ease: "easeOut" },
         },
       }}
       className={className}
@@ -100,77 +112,76 @@ function Section({ children, className = "", id = "" }) {
   );
 }
 
-/* ─── Data (unchanged) ─── */
 const features = [
   {
-    icon: <CalendarCheck size={28} />,
-    color: "text-blue-600",
-    bg: "bg-blue-50",
-    title: "Instant Booking",
-    desc: "Select your dates, pick a vehicle, and confirm in under 60 seconds with real-time availability checks.",
+    icon: <CalendarCheck size={26} />,
+    title: "Instant booking flow",
+    desc: "Customers select dates, choose a vehicle, and send booking requests quickly.",
+    color: "text-blue-600 dark:text-blue-300",
+    bg: "bg-blue-50 dark:bg-blue-950/40",
   },
   {
-    icon: <ShieldCheck size={28} />,
-    color: "text-purple-600",
-    bg: "bg-purple-50",
-    title: "Verified & Secure",
-    desc: "JWT-based authentication, role-separated dashboards, and encrypted data at every layer.",
+    icon: <ShieldCheck size={26} />,
+    title: "Secure role access",
+    desc: "Customer, owner, and admin dashboards stay separated with protected routes.",
+    color: "text-emerald-600 dark:text-emerald-300",
+    bg: "bg-emerald-50 dark:bg-emerald-950/40",
   },
   {
-    icon: <TrendingUp size={28} />,
-    color: "text-indigo-600",
-    bg: "bg-indigo-50",
-    title: "Owner Analytics",
-    desc: "Track fleet utilization, booking trends, and revenue from a powerful owner dashboard.",
+    icon: <TrendingUp size={26} />,
+    title: "Owner control",
+    desc: "Owners manage vehicles, status, prices, and booking approvals from one panel.",
+    color: "text-purple-600 dark:text-purple-300",
+    bg: "bg-purple-50 dark:bg-purple-950/40",
   },
   {
-    icon: <Zap size={28} />,
-    color: "text-blue-600",
-    bg: "bg-blue-50",
-    title: "Real-time Status",
-    desc: "Booking approvals, rejections, and updates reflect instantly for both owners and customers.",
+    icon: <Zap size={26} />,
+    title: "Live updates",
+    desc: "Dashboards refresh automatically so users see fresh booking and vehicle data.",
+    color: "text-indigo-600 dark:text-indigo-300",
+    bg: "bg-indigo-50 dark:bg-indigo-950/40",
   },
   {
-    icon: <MapPin size={28} />,
-    color: "text-purple-600",
-    bg: "bg-purple-50",
-    title: "Location Filters",
-    desc: "Browse vehicles near your pickup location with distance-aware search and smart sorting.",
+    icon: <MapPin size={26} />,
+    title: "Location filters",
+    desc: "Customers can filter vehicles by city, type, fuel, and price range.",
+    color: "text-rose-600 dark:text-rose-300",
+    bg: "bg-rose-50 dark:bg-rose-950/40",
   },
   {
-    icon: <Clock size={28} />,
-    color: "text-indigo-600",
-    bg: "bg-indigo-50",
-    title: "Flexible Duration",
-    desc: "Hourly, daily, or weekly rentals. Pricing auto-adjusts based on duration and vehicle type.",
+    icon: <Clock size={26} />,
+    title: "Flexible plans",
+    desc: "Daily, weekly, and monthly pricing makes rentals simple for every journey.",
+    color: "text-amber-600 dark:text-amber-300",
+    bg: "bg-amber-50 dark:bg-amber-950/40",
   },
 ];
 
 const steps = [
   {
     num: "01",
-    title: "Create your account",
-    desc: "Register as a customer in minutes. Owners get a separate onboarding flow to list their fleet.",
+    title: "Create account",
+    desc: "Register as a customer or enter through the staff portal as an owner.",
   },
   {
     num: "02",
-    title: "Browse the fleet",
-    desc: "Filter by vehicle type, price range, location, and availability window.",
+    title: "Browse vehicles",
+    desc: "Search by type, fuel, city, and rental price.",
   },
   {
     num: "03",
-    title: "Request a booking",
-    desc: "Pick your dates, review the pricing summary, and send your booking request.",
+    title: "Send request",
+    desc: "Select rental dates and send a booking request.",
   },
   {
     num: "04",
-    title: "Owner approves",
-    desc: "The vehicle owner reviews and confirms. You get notified instantly.",
+    title: "Owner approval",
+    desc: "Owner approves or rejects based on availability.",
   },
   {
     num: "05",
-    title: "Ride & return",
-    desc: "Collect the vehicle, complete your rental, and leave a review when done.",
+    title: "Pay and ride",
+    desc: "After approval, customer completes payment and starts the trip.",
   },
 ];
 
@@ -178,53 +189,52 @@ const fleet = [
   {
     type: "Motorcycles",
     icon: "🏍️",
-    desc: "Nimble, fuel-efficient, perfect for city commutes and short trips.",
-    tag: "Most popular",
+    desc: "Fast, flexible, and ideal for city rides or weekend routes.",
+    tag: "Popular",
   },
   {
     type: "Scooters",
     icon: "🛵",
-    desc: "Easy to ride, great for beginners, ideal for urban exploration.",
-    tag: "Beginner friendly",
+    desc: "Beginner-friendly vehicles for daily commute and short trips.",
+    tag: "Easy ride",
   },
   {
     type: "Sedans",
     icon: "🚗",
-    desc: "Comfortable four-wheelers for family outings and long-distance travel.",
-    tag: "Family choice",
+    desc: "Comfortable four-wheelers for business, family, and city travel.",
+    tag: "Comfort",
   },
   {
     type: "SUVs",
     icon: "🚙",
-    desc: "Spacious and powerful for off-road adventures and group trips.",
+    desc: "Spacious and powerful vehicles for groups and long-distance trips.",
     tag: "Premium",
   },
 ];
 
 const plans = [
   {
-    name: "Pay-as-you-go",
+    name: "Customer",
     price: "₹0",
-    sub: "No monthly fee",
+    sub: "free account",
     perks: [
-      "Pay only when you book",
-      "Access to all vehicles",
-      "Instant booking requests",
-      "Email notifications",
+      "Browse all approved vehicles",
+      "Send booking requests",
+      "Track booking status",
+      "Pay online after approval",
     ],
     cta: "/customer-register",
     highlight: false,
   },
   {
-    name: "Rento  Pro",
+    name: "Rento Pro",
     price: "₹199",
-    sub: "per month",
+    sub: "future plan",
     perks: [
       "Priority booking queue",
-      "10% discount on all rentals",
-      "Dedicated support chat",
-      "Early access to new fleet",
+      "Rental discounts",
       "Booking history export",
+      "Faster support access",
     ],
     cta: "/customer-register",
     highlight: true,
@@ -232,15 +242,14 @@ const plans = [
   {
     name: "Fleet Owner",
     price: "₹499",
-    sub: "per month",
+    sub: "future plan",
     perks: [
-      "List unlimited vehicles",
-      "Owner analytics dashboard",
-      "Custom pricing rules",
-      "Conflict detection engine",
-      "Revenue reports",
+      "Add unlimited vehicles",
+      "Approve booking requests",
+      "Auto-generate vehicle data",
+      "Manage fleet availability",
     ],
-    cta: "/owner-register",
+    cta: "/staff",
     highlight: false,
   },
 ];
@@ -248,341 +257,350 @@ const plans = [
 const testimonials = [
   {
     name: "Arjun Mehta",
-    role: "Student, Pune",
-    text: "Booked a scooter for my college commute in literally 2 minutes. The owner approved within the hour. This app is a lifesaver.",
+    role: "Customer",
+    text: "Booking a scooter was simple. I could see the price, dates, and booking status clearly.",
     stars: 5,
   },
   {
     name: "Priya Nair",
-    role: "Fleet Owner, Kochi",
-    text: "I listed 6 bikes and within a week had bookings every day. The dashboard shows me everything — revenue, pending requests, conflicts. Incredible.",
+    role: "Fleet Owner",
+    text: "The owner dashboard makes it easy to add vehicles and approve booking requests.",
     stars: 5,
   },
   {
     name: "Rohan Das",
-    role: "Traveller, Bhubaneswar",
-    text: "Used Rento  to rent an SUV for a weekend trip to Chilika. Super smooth experience from booking to return. Will use again.",
+    role: "Traveller",
+    text: "The UI is clean and the rental flow feels smooth from browsing to booking.",
     stars: 5,
   },
 ];
 
-/* ─── Component with Framer Motion animations ─── */
-export default function Home() {
-  // For staggered children
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1, delayChildren: 0.2 },
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+      delayChildren: 0.1,
     },
-  };
+  },
+};
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
-  };
+const itemVariants = {
+  hidden: { opacity: 0, y: 18 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.45, ease: "easeOut" },
+  },
+};
 
+export default function Home() {
   return (
-    <div className="min-h-screen bg-white font-sans antialiased">
-      {/* ══════════ 1. HERO ══════════ */}
-      <section className="relative overflow-hidden bg-white px-6 pt-20 pb-24 sm:px-10 lg:px-20">
-        {/* background grid */}
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage:
-              "linear-gradient(#6366f1 1px, transparent 1px), linear-gradient(90deg, #6366f1 1px, transparent 1px)",
-            backgroundSize: "48px 48px",
-          }}
-        />
-        {/* animated blobs with framer */}
-        <motion.div
-          className="pointer-events-none absolute -top-24 -right-24 h-[420px] w-[420px] rounded-full bg-blue-100/60 blur-3xl"
-          animate={{ y: [0, -20, 0], rotate: [0, 5, 0] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="pointer-events-none absolute -bottom-24 -left-12 h-[320px] w-[320px] rounded-full bg-purple-100/60 blur-3xl"
-          animate={{ y: [0, 15, 0], x: [0, 10, 0] }}
-          transition={{
-            duration: 7,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 1,
-          }}
-        />
+    <main className="min-h-screen overflow-hidden bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-white">
+      <section className="relative px-4 py-20 sm:px-8 lg:px-12">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-[-10rem] top-[-10rem] h-[28rem] w-[28rem] rounded-full bg-blue-500/10 blur-3xl dark:bg-blue-500/20" />
+          <div className="absolute right-[-10rem] top-20 h-[28rem] w-[28rem] rounded-full bg-purple-500/10 blur-3xl dark:bg-purple-500/20" />
+          <div
+            className="absolute inset-0 opacity-[0.05] dark:opacity-[0.08]"
+            style={{
+              backgroundImage:
+                "linear-gradient(#64748b 1px, transparent 1px), linear-gradient(90deg, #64748b 1px, transparent 1px)",
+              backgroundSize: "48px 48px",
+            }}
+          />
+        </div>
 
         <div className="relative mx-auto max-w-7xl">
-          <div className="grid items-center gap-16 lg:grid-cols-2">
-            {/* Left with framer motion */}
+          <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
             <motion.div
-              initial={{ opacity: 0, x: -40 }}
+              initial={{ opacity: 0, x: -32 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, ease: "easeOut" }}
-              className="flex flex-col items-start"
             >
-              <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-blue-700">
-                <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
-                Vehicle Rental Platform
+              <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/80 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-blue-700 shadow-sm backdrop-blur-xl dark:border-blue-900/70 dark:bg-slate-900/80 dark:text-blue-300">
+                <Sparkles size={14} />
+                Smart vehicle rental platform
               </span>
 
-              <h1 className="text-5xl font-black leading-[1.07] tracking-tight text-slate-950 sm:text-6xl xl:text-7xl">
-                Rent smarter.
-                <br />
-                <span className="relative inline-block">
-                  <span className="relative z-10 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    Move faster.
-                  </span>
-                  <motion.span
-                    className="absolute bottom-1 left-0 -z-0 h-3 w-full bg-purple-100 rounded"
-                    animate={{ width: ["0%", "100%"] }}
-                    transition={{ duration: 1, delay: 0.5 }}
-                  />
+              <h1 className="mt-7 max-w-4xl text-5xl font-black leading-[1.02] tracking-tight text-slate-950 dark:text-white sm:text-6xl xl:text-7xl">
+                Rent vehicles
+                <span className="block bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent dark:from-blue-300 dark:via-indigo-300 dark:to-purple-300">
+                  faster and cleaner.
                 </span>
               </h1>
 
-              <p className="mt-6 max-w-md text-lg leading-relaxed text-slate-500">
-                A centralized platform where customers book two-wheelers and
-                four-wheelers while owners manage fleet, pricing, and booking
-                requests — all in real time.
+              <p className="mt-6 max-w-xl text-base leading-8 text-slate-600 dark:text-slate-300 sm:text-lg">
+                Rento connects customers with verified two-wheelers and
+                four-wheelers while owners manage fleet, pricing, booking
+                requests, and availability from a modern dashboard.
               </p>
 
-              <div className="mt-10 flex flex-wrap gap-3">
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
+              <div className="mt-9 flex flex-wrap gap-3">
+                <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
                   <Link
                     to="/vehicles"
-                    className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:shadow-blue-300"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-6 py-4 text-sm font-black text-white shadow-xl shadow-slate-200 transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:shadow-none dark:hover:bg-slate-200"
                   >
-                    Browse Vehicles <ArrowRight size={16} />
+                    Browse Vehicles
+                    <ArrowRight size={17} />
                   </Link>
                 </motion.div>
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
+
+                <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
                   <Link
                     to="/customer-register"
-                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700"
+                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-6 py-4 text-sm font-black text-slate-800 shadow-sm backdrop-blur-xl transition hover:bg-white dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:bg-slate-800"
                   >
-                    Create Account
+                    Create Customer Account
+                  </Link>
+                </motion.div>
+
+                <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
+                  <Link
+                    to="/staff"
+                    className="inline-flex items-center gap-2 rounded-2xl border border-purple-200 bg-purple-50 px-6 py-4 text-sm font-black text-purple-700 transition hover:bg-purple-100 dark:border-purple-900/70 dark:bg-purple-950/40 dark:text-purple-300 dark:hover:bg-purple-950"
+                  >
+                    Staff Portal
                   </Link>
                 </motion.div>
               </div>
 
-              <div className="mt-10 flex items-center gap-6">
+              <div className="mt-10 grid max-w-xl grid-cols-3 gap-3">
                 {[
-                  ["2,400+", "Vehicles listed"],
-                  ["98%", "Booking success"],
-                  ["4.9★", "Avg. rating"],
-                ].map(([val, lbl]) => (
-                  <div key={lbl} className="text-center">
-                    <p className="text-xl font-black text-slate-900">{val}</p>
-                    <p className="text-xs text-slate-400">{lbl}</p>
+                  ["2,400+", "Vehicles"],
+                  ["98%", "Success"],
+                  ["4.9★", "Rating"],
+                ].map(([value, label]) => (
+                  <div
+                    key={label}
+                    className="rounded-3xl border border-white/70 bg-white/75 p-4 text-center shadow-sm backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/75"
+                  >
+                    <p className="text-xl font-black text-slate-950 dark:text-white">
+                      {value}
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      {label}
+                    </p>
                   </div>
                 ))}
               </div>
             </motion.div>
 
-            {/* Right card with framer motion */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, rotateY: -10 }}
-              animate={{ opacity: 1, scale: 1, rotateY: 0 }}
-              transition={{ duration: 0.7, type: "spring", stiffness: 100 }}
+              initial={{ opacity: 0, scale: 0.96, y: 24 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.65, ease: "easeOut" }}
               className="relative"
             >
-              <div className="rounded-[2rem] border border-slate-100 bg-gradient-to-br from-blue-50 via-white to-purple-50 p-8 shadow-2xl shadow-slate-100">
-                <div className="mb-5 flex items-center gap-3">
-                  <motion.div
-                    whileHover={{ rotate: 10, scale: 1.05 }}
-                    className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-white shadow-lg"
-                  >
-                    <Car size={28} />
-                  </motion.div>
-                  <div>
-                    <p className="font-bold text-slate-900">
-                      Smart Rental Dashboard
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      Live fleet · owner approvals · conflict-free
-                    </p>
-                  </div>
-                </div>
+              <div className="rounded-[2.2rem] border border-white/80 bg-white/75 p-5 shadow-2xl shadow-slate-200/70 backdrop-blur-2xl dark:border-slate-800 dark:bg-slate-900/75 dark:shadow-black/30">
+                <div className="rounded-[1.8rem] bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6 dark:from-slate-900 dark:via-slate-950 dark:to-indigo-950">
+                  <div className="mb-6 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-950 text-white dark:bg-white dark:text-slate-950">
+                        <Car size={28} />
+                      </div>
 
-                {/* mock booking card with pulse animation */}
-                <motion.div
-                  whileHover={{
-                    y: -2,
-                    boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)",
-                  }}
-                  className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-slate-400">Active booking</p>
-                      <p className="font-bold text-slate-800">
-                        Honda Activa 6G
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
-                      Confirmed
-                    </span>
-                  </div>
-                  <div className="mt-3 flex gap-4 text-xs text-slate-500">
-                    <span>📅 Jun 10 – Jun 13</span>
-                    <span>💰 ₹1,200 total</span>
-                  </div>
-                </motion.div>
-
-                <div className="mt-4 grid grid-cols-3 gap-3">
-                  {[
-                    {
-                      icon: <CalendarCheck size={18} />,
-                      label: "Easy Booking",
-                      color: "text-blue-600 bg-blue-50",
-                    },
-                    {
-                      icon: <ShieldCheck size={18} />,
-                      label: "Secure Login",
-                      color: "text-emerald-600 bg-emerald-50",
-                    },
-                    {
-                      icon: <TrendingUp size={18} />,
-                      label: "Fleet Growth",
-                      color: "text-purple-600 bg-purple-50",
-                    },
-                  ].map(({ icon, label, color }) => (
-                    <motion.div
-                      key={label}
-                      whileHover={{ y: -3, scale: 1.02 }}
-                      className="flex flex-col items-center gap-2 rounded-xl bg-white p-3 shadow-sm border border-slate-100"
-                    >
-                      <span className={`rounded-lg p-2 ${color}`}>{icon}</span>
-                      <p className="text-center text-xs font-medium text-slate-600">
-                        {label}
-                      </p>
-                    </motion.div>
-                  ))}
-                </div>
-
-                {/* owner requests strip */}
-                <div className="mt-4 rounded-xl border border-purple-100 bg-purple-50 p-3">
-                  <p className="mb-2 text-xs font-semibold text-purple-700">
-                    Owner — pending requests
-                  </p>
-                  {[
-                    { v: "Royal Enfield Classic", t: "Jun 15–17" },
-                    { v: "Maruti Swift", t: "Jun 20–22" },
-                  ].map(({ v, t }) => (
-                    <div
-                      key={v}
-                      className="flex items-center justify-between py-1.5"
-                    >
-                      <span className="text-xs text-slate-600">
-                        {v} · {t}
-                      </span>
-                      <div className="flex gap-1">
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          className="rounded-md bg-white px-2 py-0.5 text-xs font-semibold text-emerald-600 border border-emerald-200"
-                        >
-                          ✓
-                        </motion.button>
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          className="rounded-md bg-white px-2 py-0.5 text-xs font-semibold text-red-400 border border-red-100"
-                        >
-                          ✕
-                        </motion.button>
+                      <div>
+                        <p className="font-black text-slate-950 dark:text-white">
+                          Live rental dashboard
+                        </p>
+                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          Fleet · bookings · approvals
+                        </p>
                       </div>
                     </div>
-                  ))}
+
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                      Online
+                    </span>
+                  </div>
+
+                  <div className="grid gap-4">
+                    <motion.div
+                      whileHover={{ y: -3 }}
+                      className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                            Active booking
+                          </p>
+                          <h3 className="mt-2 text-xl font-black text-slate-950 dark:text-white">
+                            Kia Seltos HTX
+                          </h3>
+                          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                            9 Jun 2026 → 23 Jun 2026
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl bg-blue-50 p-3 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300">
+                          <CalendarCheck />
+                        </div>
+                      </div>
+
+                      <div className="mt-5 grid grid-cols-3 gap-3">
+                        {[
+                          ["₹51,408", "Amount"],
+                          ["Approved", "Status"],
+                          ["Unpaid", "Payment"],
+                        ].map(([value, label]) => (
+                          <div
+                            key={label}
+                            className="rounded-2xl bg-slate-50 p-3 dark:bg-slate-950"
+                          >
+                            <p className="text-sm font-black text-slate-950 dark:text-white">
+                              {value}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                              {label}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        {
+                          icon: <Bike size={19} />,
+                          label: "2W",
+                          value: "Scooters",
+                        },
+                        {
+                          icon: <Car size={19} />,
+                          label: "4W",
+                          value: "SUVs",
+                        },
+                        {
+                          icon: <ShieldCheck size={19} />,
+                          label: "Safe",
+                          value: "Verified",
+                        },
+                      ].map((item) => (
+                        <motion.div
+                          key={item.label}
+                          whileHover={{ y: -3 }}
+                          className="rounded-3xl border border-slate-100 bg-white p-4 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                        >
+                          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-white">
+                            {item.icon}
+                          </div>
+                          <p className="mt-3 text-sm font-black text-slate-950 dark:text-white">
+                            {item.label}
+                          </p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {item.value}
+                          </p>
+                        </motion.div>
+                      ))}
+                    </div>
+
+                    <div className="rounded-3xl border border-purple-100 bg-purple-50 p-4 dark:border-purple-900/60 dark:bg-purple-950/30">
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-purple-700 dark:text-purple-300">
+                        Owner pending requests
+                      </p>
+
+                      <div className="mt-3 space-y-2">
+                        {["Royal Enfield Classic", "Maruti Swift ZXI"].map(
+                          (item) => (
+                            <div
+                              key={item}
+                              className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 dark:bg-slate-900"
+                            >
+                              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                                {item}
+                              </span>
+
+                              <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+                                Pending
+                              </span>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>
           </div>
 
-          {/* scroll hint */}
           <motion.div
             className="mt-16 flex justify-center"
-            animate={{ y: [0, 5, 0] }}
+            animate={{ y: [0, 6, 0] }}
             transition={{ duration: 1.5, repeat: Infinity }}
           >
-            <div className="flex flex-col items-center gap-1 text-slate-300">
-              <span className="text-xs">Scroll to explore</span>
-              <ChevronDown size={18} className="animate-bounce" />
+            <div className="flex flex-col items-center gap-1 text-slate-400 dark:text-slate-500">
+              <span className="text-xs font-bold">Scroll to explore</span>
+              <ChevronDown size={18} />
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* ══════════ 2. STATS ══════════ */}
-      <Section className="border-y border-slate-100 bg-slate-50 px-6 py-16 sm:px-10 lg:px-20">
-        <div className="mx-auto max-w-7xl">
-          <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
-            {[
-              {
-                val: 2400,
-                suffix: "+",
-                label: "Vehicles Listed",
-                icon: <Car size={20} />,
-                color: "text-blue-600",
-              },
-              {
-                val: 18000,
-                suffix: "+",
-                label: "Bookings Completed",
-                icon: <CalendarCheck size={20} />,
-                color: "text-purple-600",
-              },
-              {
-                val: 950,
-                suffix: "+",
-                label: "Verified Owners",
-                icon: <ShieldCheck size={20} />,
-                color: "text-indigo-600",
-              },
-              {
-                val: 99,
-                suffix: "%",
-                label: "Uptime Guaranteed",
-                icon: <TrendingUp size={20} />,
-                color: "text-blue-600",
-              },
-            ].map(({ val, suffix, label, icon, color }) => (
-              <motion.div
-                key={label}
-                whileHover={{ scale: 1.05 }}
-                className="flex flex-col items-center gap-1 text-center"
-              >
-                <span className={`mb-1 ${color}`}>{icon}</span>
-                <p className="text-4xl font-black text-slate-900">
-                  <Counter target={val} suffix={suffix} />
-                </p>
-                <p className="text-sm text-slate-400">{label}</p>
-              </motion.div>
-            ))}
-          </div>
+      <Section className="border-y border-slate-200/70 bg-white/70 px-4 py-14 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/60 sm:px-8 lg:px-12">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-5 lg:grid-cols-4">
+          {[
+            {
+              val: 2400,
+              suffix: "+",
+              label: "Vehicles listed",
+              icon: <Car size={20} />,
+            },
+            {
+              val: 18000,
+              suffix: "+",
+              label: "Bookings completed",
+              icon: <CalendarCheck size={20} />,
+            },
+            {
+              val: 950,
+              suffix: "+",
+              label: "Verified owners",
+              icon: <ShieldCheck size={20} />,
+            },
+            {
+              val: 99,
+              suffix: "%",
+              label: "System uptime",
+              icon: <TrendingUp size={20} />,
+            },
+          ].map((stat) => (
+            <motion.div
+              key={stat.label}
+              whileHover={{ y: -4 }}
+              className="rounded-3xl border border-slate-100 bg-white p-5 text-center shadow-sm dark:border-slate-800 dark:bg-slate-950"
+            >
+              <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300">
+                {stat.icon}
+              </div>
+              <p className="text-3xl font-black text-slate-950 dark:text-white">
+                <Counter target={stat.val} suffix={stat.suffix} />
+              </p>
+              <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                {stat.label}
+              </p>
+            </motion.div>
+          ))}
         </div>
       </Section>
 
-      {/* ══════════ 3. FEATURES ══════════ */}
-      <Section id="features" className="px-6 py-24 sm:px-10 lg:px-20">
+      <Section id="features" className="px-4 py-20 sm:px-8 lg:px-12">
         <div className="mx-auto max-w-7xl">
-          <div className="mb-14 text-center">
-            <span className="mb-3 inline-block rounded-full bg-blue-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-blue-600">
-              Why Rento
+          <div className="mx-auto mb-12 max-w-2xl text-center">
+            <span className="rounded-full bg-blue-50 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+              Features
             </span>
-            <h2 className="text-4xl font-black text-slate-900">
-              Everything you need, nothing you don't
+
+            <h2 className="mt-5 text-4xl font-black tracking-tight text-slate-950 dark:text-white">
+              Built for renters and owners
             </h2>
-            <p className="mt-3 text-slate-400 max-w-xl mx-auto">
-              Built for speed, transparency, and scale — from a solo scooter
-              hire to a 500-vehicle fleet.
+
+            <p className="mt-3 text-slate-600 dark:text-slate-300">
+              A focused rental platform with the core tools your MERN project
+              needs: auth, fleet, bookings, approval flow, payments, and admin.
             </p>
           </div>
 
@@ -590,110 +608,52 @@ export default function Home() {
             variants={containerVariants}
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, amount: 0.1 }}
-            className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+            viewport={{ once: true, amount: 0.12 }}
+            className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
           >
-            {features.map(({ icon, color, bg, title, desc }) => (
+            {features.map((feature) => (
               <motion.div
-                key={title}
+                key={feature.title}
                 variants={itemVariants}
-                whileHover={{ y: -5, transition: { duration: 0.2 } }}
-                className="group rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition hover:shadow-md"
+                whileHover={{ y: -5 }}
+                className="rounded-[1.7rem] border border-slate-100 bg-white p-6 shadow-sm transition dark:border-slate-800 dark:bg-slate-900"
               >
-                <motion.div
-                  whileHover={{ rotate: 5, scale: 1.05 }}
-                  className={`mb-4 inline-flex rounded-xl p-3 ${bg} ${color}`}
+                <div
+                  className={`mb-5 inline-flex rounded-2xl p-3 ${feature.bg} ${feature.color}`}
                 >
-                  {icon}
-                </motion.div>
-                <h3 className="mb-2 font-bold text-slate-900">{title}</h3>
-                <p className="text-sm leading-relaxed text-slate-500">{desc}</p>
+                  {feature.icon}
+                </div>
+
+                <h3 className="text-lg font-black text-slate-950 dark:text-white">
+                  {feature.title}
+                </h3>
+
+                <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-300">
+                  {feature.desc}
+                </p>
               </motion.div>
             ))}
           </motion.div>
         </div>
       </Section>
 
-      {/* ══════════ 4. HOW IT WORKS ══════════ */}
       <Section
         id="how-it-works"
-        className="bg-gradient-to-br from-blue-600 to-purple-700 px-6 py-24 sm:px-10 lg:px-20"
+        className="bg-slate-950 px-4 py-20 text-white dark:bg-black sm:px-8 lg:px-12"
       >
         <div className="mx-auto max-w-7xl">
-          <div className="mb-14 text-center">
-            <span className="mb-3 inline-block rounded-full bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-blue-100">
-              The Process
+          <div className="mx-auto mb-12 max-w-2xl text-center">
+            <span className="rounded-full bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-blue-200">
+              Process
             </span>
-            <h2 className="text-4xl font-black text-white">How Rento works</h2>
-            <p className="mt-3 text-blue-100 max-w-md mx-auto">
-              From account creation to keys in hand — five clear steps.
-            </p>
-          </div>
 
-          <div className="relative">
-            <div className="absolute top-10 left-10 right-10 h-0.5 bg-white/10 hidden lg:block" />
-            <motion.div
-              variants={containerVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              className="grid gap-6 lg:grid-cols-5"
-            >
-              {steps.map(({ num, title, desc }) => (
-                <motion.div
-                  key={num}
-                  variants={itemVariants}
-                  whileHover={{ y: -5 }}
-                  className="relative flex flex-col items-start lg:items-center text-left lg:text-center"
-                >
-                  <motion.div
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                    className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-white/10 border border-white/20 text-3xl font-black text-white"
-                  >
-                    {num}
-                  </motion.div>
-                  <h4 className="mb-1 font-bold text-white">{title}</h4>
-                  <p className="text-xs leading-relaxed text-blue-100">
-                    {desc}
-                  </p>
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
-
-          <div className="mt-14 flex justify-center gap-4 flex-wrap">
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Link
-                to="/customer-register"
-                className="inline-flex items-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-bold text-blue-700 shadow-lg transition hover:shadow-xl"
-              >
-                Get started free <ArrowRight size={16} />
-              </Link>
-            </motion.div>
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Link
-                to="/vehicles"
-                className="inline-flex items-center gap-2 rounded-2xl border border-white/30 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-              >
-                View fleet
-              </Link>
-            </motion.div>
-          </div>
-        </div>
-      </Section>
-
-      {/* ══════════ 5. FLEET TYPES ══════════ */}
-      <Section id="fleet" className="px-6 py-24 sm:px-10 lg:px-20">
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-14 text-center">
-            <span className="mb-3 inline-block rounded-full bg-purple-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-purple-600">
-              Our Fleet
-            </span>
-            <h2 className="text-4xl font-black text-slate-900">
-              Two-wheelers & four-wheelers
+            <h2 className="mt-5 text-4xl font-black tracking-tight">
+              How Rento works
             </h2>
-            <p className="mt-3 text-slate-400 max-w-lg mx-auto">
-              Whatever your journey demands, Rento has a vehicle for it.
+
+            <p className="mt-3 text-slate-300">
+              From account creation to approved booking and payment, the flow is
+              simple and role-based.
             </p>
           </div>
 
@@ -702,26 +662,98 @@ export default function Home() {
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
-            className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4"
+            className="grid gap-5 lg:grid-cols-5"
           >
-            {fleet.map(({ type, icon, desc, tag }) => (
+            {steps.map((step) => (
               <motion.div
-                key={type}
+                key={step.num}
                 variants={itemVariants}
-                whileHover={{ y: -8 }}
-                className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition hover:shadow-lg"
+                whileHover={{ y: -5 }}
+                className="rounded-[1.7rem] border border-white/10 bg-white/[0.06] p-5 backdrop-blur-xl"
               >
-                <span className="absolute top-4 right-4 rounded-full bg-blue-50 px-2.5 py-0.5 text-[10px] font-semibold text-blue-600">
-                  {tag}
+                <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-lg font-black text-slate-950">
+                  {step.num}
+                </div>
+
+                <h3 className="font-black text-white">{step.title}</h3>
+
+                <p className="mt-2 text-sm leading-7 text-slate-300">
+                  {step.desc}
+                </p>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          <div className="mt-12 flex flex-wrap justify-center gap-3">
+            <Link
+              to="/customer-register"
+              className="inline-flex items-center gap-2 rounded-2xl bg-white px-6 py-4 text-sm font-black text-slate-950 transition hover:bg-slate-200"
+            >
+              Start as customer
+              <ArrowRight size={16} />
+            </Link>
+
+            <Link
+              to="/staff"
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/20 px-6 py-4 text-sm font-black text-white transition hover:bg-white/10"
+            >
+              Continue as staff
+            </Link>
+          </div>
+        </div>
+      </Section>
+
+      <Section id="fleet" className="px-4 py-20 sm:px-8 lg:px-12">
+        <div className="mx-auto max-w-7xl">
+          <div className="mx-auto mb-12 max-w-2xl text-center">
+            <span className="rounded-full bg-purple-50 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
+              Fleet
+            </span>
+
+            <h2 className="mt-5 text-4xl font-black tracking-tight text-slate-950 dark:text-white">
+              Two-wheelers and four-wheelers
+            </h2>
+
+            <p className="mt-3 text-slate-600 dark:text-slate-300">
+              Owners can add real vehicles or generate realistic vehicle data
+              from presets before listing.
+            </p>
+          </div>
+
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4"
+          >
+            {fleet.map((item) => (
+              <motion.div
+                key={item.type}
+                variants={itemVariants}
+                whileHover={{ y: -7 }}
+                className="group relative overflow-hidden rounded-[1.7rem] border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+              >
+                <span className="absolute right-4 top-4 rounded-full bg-blue-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+                  {item.tag}
                 </span>
-                <div className="mb-4 text-5xl">{icon}</div>
-                <h3 className="mb-2 font-bold text-slate-900">{type}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{desc}</p>
+
+                <div className="mb-5 text-5xl">{item.icon}</div>
+
+                <h3 className="text-lg font-black text-slate-950 dark:text-white">
+                  {item.type}
+                </h3>
+
+                <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-300">
+                  {item.desc}
+                </p>
+
                 <Link
                   to="/vehicles"
-                  className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 transition group-hover:gap-2"
+                  className="mt-5 inline-flex items-center gap-1 text-sm font-black text-blue-700 transition group-hover:gap-2 dark:text-blue-300"
                 >
-                  Browse {type} <ArrowRight size={12} />
+                  Browse {item.type}
+                  <ArrowRight size={14} />
                 </Link>
               </motion.div>
             ))}
@@ -729,21 +761,23 @@ export default function Home() {
         </div>
       </Section>
 
-      {/* ══════════ 6. PRICING ══════════ */}
       <Section
         id="pricing"
-        className="bg-slate-50 px-6 py-24 sm:px-10 lg:px-20"
+        className="bg-white/70 px-4 py-20 backdrop-blur-xl dark:bg-slate-900/40 sm:px-8 lg:px-12"
       >
         <div className="mx-auto max-w-7xl">
-          <div className="mb-14 text-center">
-            <span className="mb-3 inline-block rounded-full bg-indigo-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-indigo-600">
+          <div className="mx-auto mb-12 max-w-2xl text-center">
+            <span className="rounded-full bg-indigo-50 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
               Pricing
             </span>
-            <h2 className="text-4xl font-black text-slate-900">
-              Simple, transparent pricing
+
+            <h2 className="mt-5 text-4xl font-black tracking-tight text-slate-950 dark:text-white">
+              Simple rental plans
             </h2>
-            <p className="mt-3 text-slate-400 max-w-md mx-auto">
-              No hidden fees. No surprises. Choose the plan that fits your role.
+
+            <p className="mt-3 text-slate-600 dark:text-slate-300">
+              Your MVP starts free for customers and supports future premium
+              plans for customers and owners.
             </p>
           </div>
 
@@ -752,67 +786,82 @@ export default function Home() {
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
-            className="grid gap-6 lg:grid-cols-3"
+            className="grid gap-5 lg:grid-cols-3"
           >
-            {plans.map(({ name, price, sub, perks, cta, highlight }) => (
+            {plans.map((plan) => (
               <motion.div
-                key={name}
+                key={plan.name}
                 variants={itemVariants}
-                whileHover={{ y: -8 }}
-                className={`relative flex flex-col rounded-2xl border p-8 shadow-sm transition ${
-                  highlight
-                    ? "border-blue-300 bg-gradient-to-b from-blue-600 to-purple-600 text-white"
-                    : "border-slate-100 bg-white text-slate-900"
+                whileHover={{ y: -7 }}
+                className={`relative rounded-[1.7rem] border p-7 shadow-sm ${
+                  plan.highlight
+                    ? "border-blue-500 bg-slate-950 text-white dark:border-blue-400 dark:bg-white dark:text-slate-950"
+                    : "border-slate-100 bg-white text-slate-950 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
                 }`}
               >
-                {highlight && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-4 py-0.5 text-xs font-bold text-amber-900">
-                    Most Popular
+                {plan.highlight && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-4 py-1 text-xs font-black text-amber-950">
+                    Popular
                   </span>
                 )}
+
                 <p
-                  className={`text-sm font-semibold ${highlight ? "text-blue-100" : "text-slate-400"}`}
+                  className={`text-sm font-black uppercase tracking-[0.18em] ${
+                    plan.highlight
+                      ? "text-blue-200 dark:text-blue-700"
+                      : "text-slate-400"
+                  }`}
                 >
-                  {name}
+                  {plan.name}
                 </p>
-                <div className="mt-3 flex items-end gap-1">
+
+                <div className="mt-4 flex items-end gap-2">
+                  <span className="text-5xl font-black">{plan.price}</span>
                   <span
-                    className={`text-5xl font-black ${highlight ? "text-white" : "text-slate-900"}`}
+                    className={`mb-2 text-sm ${
+                      plan.highlight
+                        ? "text-slate-300 dark:text-slate-600"
+                        : "text-slate-500 dark:text-slate-400"
+                    }`}
                   >
-                    {price}
-                  </span>
-                  <span
-                    className={`mb-2 text-sm ${highlight ? "text-blue-100" : "text-slate-400"}`}
-                  >
-                    {sub}
+                    {plan.sub}
                   </span>
                 </div>
-                <ul className="mt-6 flex flex-col gap-3 flex-1">
-                  {perks.map((p) => (
-                    <li key={p} className="flex items-start gap-2 text-sm">
+
+                <ul className="mt-7 space-y-3">
+                  {plan.perks.map((perk) => (
+                    <li key={perk} className="flex gap-2 text-sm">
                       <CheckCircle2
-                        size={15}
-                        className={`mt-0.5 shrink-0 ${highlight ? "text-blue-200" : "text-emerald-500"}`}
+                        size={16}
+                        className={`mt-0.5 shrink-0 ${
+                          plan.highlight
+                            ? "text-blue-300 dark:text-blue-700"
+                            : "text-emerald-500"
+                        }`}
                       />
                       <span
                         className={
-                          highlight ? "text-blue-50" : "text-slate-600"
+                          plan.highlight
+                            ? "text-slate-200 dark:text-slate-700"
+                            : "text-slate-600 dark:text-slate-300"
                         }
                       >
-                        {p}
+                        {perk}
                       </span>
                     </li>
                   ))}
                 </ul>
+
                 <Link
-                  to={cta}
-                  className={`mt-8 inline-flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition ${
-                    highlight
-                      ? "bg-white text-blue-700 hover:bg-blue-50"
-                      : "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:opacity-90"
+                  to={plan.cta}
+                  className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-4 text-sm font-black transition ${
+                    plan.highlight
+                      ? "bg-white text-slate-950 hover:bg-slate-200 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-800"
+                      : "bg-slate-950 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
                   }`}
                 >
-                  Get started <ArrowRight size={14} />
+                  Get started
+                  <ArrowRight size={15} />
                 </Link>
               </motion.div>
             ))}
@@ -820,15 +869,15 @@ export default function Home() {
         </div>
       </Section>
 
-      {/* ══════════ 7. TESTIMONIALS + CTA ══════════ */}
-      <Section id="testimonials" className="px-6 py-24 sm:px-10 lg:px-20">
+      <Section id="reviews" className="px-4 py-20 sm:px-8 lg:px-12">
         <div className="mx-auto max-w-7xl">
-          <div className="mb-14 text-center">
-            <span className="mb-3 inline-block rounded-full bg-emerald-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-emerald-600">
+          <div className="mx-auto mb-12 max-w-2xl text-center">
+            <span className="rounded-full bg-emerald-50 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
               Reviews
             </span>
-            <h2 className="text-4xl font-black text-slate-900">
-              Loved by renters & owners
+
+            <h2 className="mt-5 text-4xl font-black tracking-tight text-slate-950 dark:text-white">
+              Built for real users
             </h2>
           </div>
 
@@ -837,109 +886,96 @@ export default function Home() {
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
-            className="grid gap-6 lg:grid-cols-3"
+            className="grid gap-5 lg:grid-cols-3"
           >
-            {testimonials.map(({ name, role, text, stars }) => (
+            {testimonials.map((item) => (
               <motion.div
-                key={name}
+                key={item.name}
                 variants={itemVariants}
                 whileHover={{ y: -5 }}
-                className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
+                className="rounded-[1.7rem] border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
               >
-                <div className="mb-4 flex gap-0.5">
-                  {Array.from({ length: stars }).map((_, i) => (
+                <div className="mb-4 flex gap-1">
+                  {Array.from({ length: item.stars }).map((_, index) => (
                     <Star
-                      key={i}
-                      size={14}
+                      key={index}
+                      size={15}
                       className="fill-amber-400 text-amber-400"
                     />
                   ))}
                 </div>
-                <Quote size={20} className="mb-3 text-slate-200" />
-                <p className="text-sm leading-relaxed text-slate-600">
-                  "{text}"
+
+                <Quote size={22} className="mb-3 text-slate-300" />
+
+                <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">
+                  “{item.text}”
                 </p>
-                <div className="mt-5 flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-xs font-bold text-white">
-                    {name
+
+                <div className="mt-6 flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-950 text-xs font-black text-white dark:bg-white dark:text-slate-950">
+                    {item.name
                       .split(" ")
-                      .map((n) => n[0])
+                      .map((part) => part[0])
                       .join("")}
                   </div>
+
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">
-                      {name}
+                    <p className="text-sm font-black text-slate-950 dark:text-white">
+                      {item.name}
                     </p>
-                    <p className="text-xs text-slate-400">{role}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {item.role}
+                    </p>
                   </div>
                 </div>
               </motion.div>
             ))}
           </motion.div>
 
-          {/* CTA strip */}
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="mt-20 overflow-hidden rounded-[2rem] bg-gradient-to-br from-blue-600 to-purple-700 px-10 py-14 text-center shadow-2xl shadow-blue-200"
-          >
-            <h2 className="text-4xl font-black text-white">
-              Ready to hit the road?
+          <div className="mt-16 overflow-hidden rounded-[2rem] bg-slate-950 p-8 text-center text-white shadow-2xl shadow-slate-200 dark:bg-white dark:text-slate-950 dark:shadow-black/20 sm:p-12">
+            <h2 className="text-4xl font-black tracking-tight">
+              Ready to rent smarter?
             </h2>
-            <p className="mt-3 text-blue-100 max-w-md mx-auto">
-              Join thousands of customers and owners already using Rento to
-              simplify vehicle rentals.
+
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-slate-300 dark:text-slate-600">
+              Start as a customer, or enter staff portal to manage vehicles as
+              an owner or admin.
             </p>
-            <div className="mt-8 flex flex-wrap justify-center gap-4">
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <Link
+                to="/customer-register"
+                className="inline-flex items-center gap-2 rounded-2xl bg-white px-6 py-4 text-sm font-black text-slate-950 transition hover:bg-slate-200 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-800"
               >
-                <Link
-                  to="/customer-register"
-                  className="inline-flex items-center gap-2 rounded-2xl bg-white px-7 py-3.5 text-sm font-bold text-blue-700 shadow-lg transition hover:shadow-xl"
-                >
-                  Start as Customer <ArrowRight size={16} />
-                </Link>
-              </motion.div>
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                Start as Customer
+                <ArrowRight size={16} />
+              </Link>
+
+              <Link
+                to="/staff"
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/20 px-6 py-4 text-sm font-black text-white transition hover:bg-white/10 dark:border-slate-300 dark:text-slate-950 dark:hover:bg-slate-100"
               >
-                <Link
-                  to="/owner-register"
-                  className="inline-flex items-center gap-2 rounded-2xl border border-white/30 px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-white/10"
-                >
-                  List your fleet
-                </Link>
-              </motion.div>
+                List your fleet
+              </Link>
             </div>
-            <div className="mt-8 flex flex-wrap justify-center gap-6">
-              {[
-                <Users size={14} />,
-                <ShieldCheck size={14} />,
-                <Zap size={14} />,
-              ].map((icon, i) => (
-                <span
-                  key={i}
-                  className="flex items-center gap-1.5 text-xs text-blue-100"
-                >
-                  {icon}
-                  {
-                    [
-                      "No credit card required",
-                      "Cancel any time",
-                      "Instant access",
-                    ][i]
-                  }
-                </span>
-              ))}
+
+            <div className="mt-8 flex flex-wrap justify-center gap-5 text-xs font-semibold text-slate-300 dark:text-slate-600">
+              <span className="inline-flex items-center gap-1.5">
+                <Users size={14} />
+                Customer ready
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <ShieldCheck size={14} />
+                Role protected
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Zap size={14} />
+                Fast MVP flow
+              </span>
             </div>
-          </motion.div>
+          </div>
         </div>
       </Section>
-    </div>
+    </main>
   );
 }
