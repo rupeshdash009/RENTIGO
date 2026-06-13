@@ -19,19 +19,19 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: [true, "Password is required"],
-      minlength: [6, "Password must be at least 6 characters"],
       select: false,
+    },
+
+    phone: {
+      type: String,
+      default: "",
+      trim: true,
     },
 
     role: {
       type: String,
       enum: ["customer", "owner", "admin"],
       default: "customer",
-    },
-
-    phone: {
-      type: String,
-      default: "",
     },
 
     isActive: {

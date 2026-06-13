@@ -2,7 +2,12 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
+const controller = require("../controllers/authController");
 const generateToken = (id) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is missing in environment variables");
+  }
+
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: "30d",
   });
@@ -27,9 +32,9 @@ const registerUser = async (req, res) => {
       });
     }
 
-    const existingUser = await User.findOne({
-      email: email.toLowerCase().trim(),
-    });
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const existingUser = await User.findOne({ email: normalizedEmail });
 
     if (existingUser) {
       return res.status(400).json({
@@ -40,8 +45,8 @@ const registerUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
-      name,
-      email: email.toLowerCase().trim(),
+      name: name.trim(),
+      email: normalizedEmail,
       password: hashedPassword,
       role: role || "customer",
       phone: phone || "",
@@ -62,8 +67,9 @@ const registerUser = async (req, res) => {
     });
   } catch (error) {
     console.error("REGISTER ERROR:", error);
+
     return res.status(500).json({
-      message: "Registration failed",
+      message: error.message || "Registration failed",
     });
   }
 };
@@ -78,9 +84,11 @@ const loginUser = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({
-      email: email.toLowerCase().trim(),
-    }).select("+password");
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const user = await User.findOne({ email: normalizedEmail }).select(
+      "+password",
+    );
 
     if (!user) {
       return res.status(401).json({
@@ -94,9 +102,9 @@ const loginUser = async (req, res) => {
       });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isPasswordMatch = await bcrypt.compare(password, user.password);
 
-    if (!isMatch) {
+    if (!isPasswordMatch) {
       return res.status(401).json({
         message: "Invalid email or password",
       });
@@ -116,8 +124,9 @@ const loginUser = async (req, res) => {
     });
   } catch (error) {
     console.error("LOGIN ERROR:", error);
+
     return res.status(500).json({
-      message: "Login failed",
+      message: error.message || "Login failed",
     });
   }
 };
@@ -146,11 +155,11 @@ const createAdmin = async (req, res) => {
       });
     }
 
-    const existingAdmin = await User.findOne({
-      email: email.toLowerCase().trim(),
-    });
+    const normalizedEmail = email.toLowerCase().trim();
 
-    if (existingAdmin) {
+    const existingUser = await User.findOne({ email: normalizedEmail });
+
+    if (existingUser) {
       return res.status(400).json({
         message: "User already exists with this email",
       });
@@ -159,8 +168,8 @@ const createAdmin = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const admin = await User.create({
-      name,
-      email: email.toLowerCase().trim(),
+      name: name.trim(),
+      email: normalizedEmail,
       password: hashedPassword,
       role: "admin",
       phone: phone || "",
@@ -180,8 +189,9 @@ const createAdmin = async (req, res) => {
     });
   } catch (error) {
     console.error("CREATE ADMIN ERROR:", error);
+
     return res.status(500).json({
-      message: "Admin creation failed",
+      message: error.message || "Admin creation failed",
     });
   }
 };
